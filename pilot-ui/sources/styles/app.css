@@ -1,0 +1,225 @@
+
+.joystick {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+}
+
+
+.login_top {
+    text-align: center;
+    font-size: 40px;
+    color: #0d0d0d;
+    font-weight: bold;
+}
+
+
+.login_bottom {
+    text-align: center;
+    font-size: smaller;
+    margin-bottom: 20px;
+    display: inline-block;
+    width: 49%;
+}
+
+.login_bottom A {
+    text-decoration: underline;
+}
+
+
+
+.list_yel {
+    background-color: #eede00;
+}
+
+.list_red {
+    background-color: #ffcfca;
+}
+
+.list_white {
+    background-color: #ffffff;
+}
+
+.transp {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.transp_9, .transp_9 * {
+    background-color: rgba(255,255,255, 0.5) !important;
+    box-shadow: none !important;
+}
+
+.transp_all, .transp_all * {
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+
+.video_noise_320 {
+    width: 320px;
+    height: 240px;
+}
+
+
+.mission_seq2 {
+    float: left;
+    font-weight: bold;
+    padding: 0 5px;
+}
+.seq_title{
+    width: 200px;
+    overflow: hidden;
+    float: left;
+}
+.seq_button {
+    padding-left: 10px;
+    height: 60px;
+    padding-top:10px;
+    float: right;
+}
+
+
+
+/*
+.webixapp{
+	background: #ffd41a;
+}
+*/
+
+.webixappstart{
+    opacity:0;
+}
+
+.webixapp{
+    transition: opacity 1000ms;
+    opacity: 1;
+}
+
+
+
+
+.webix_gage_label {
+    font-size: 12pt !important;
+}
+
+.webix_gage_info {
+    font-size: 10pt !important;
+}
+
+.webix_gage_placeholder {
+    font-size: 10pt !important;
+}
+
+.webix_gage-value {
+    font-size: 16pt !important;
+}
+
+.webix_gage_min_range, .webix_gage_max_range {
+    display: none;
+}
+
+
+.list_row {
+    padding: 5px;
+    width: 100%;
+    height: fit-content;
+}
+
+.list_left {
+    float: left;
+    width: 180px;
+    overflow: hidden;
+    display: inline-block;
+    padding: 5px;
+}
+
+.list_right {
+    float: right;
+    text-align: right;
+    width: 100px;
+    overflow: hidden;
+    display: inline-block;
+    padding: 5px;
+}
+
+
+/*
+     Uploader
+ */
+
+.overall{height:100%; line-height: 26px;}
+  .name{height:100%; float:left; overflow: hidden; width: 180px; white-space: nowrap;}
+  .size{padding: 0 10px; width: 100px; text-align: right; float: right;}
+  .remove_file{float:right; width:15px; padding-left: 10px;}
+  .status{
+  	float: right;
+  	position: relative;
+  	margin-top: 4px;
+  	width: 80px;
+  	height: 16px;
+  	line-height: 16px;
+  	border: 1px solid #A4BED4;
+  	border-radius: 2px; -moz-border-radius: 2px; -webkit-border-radius: 2px;
+  }
+  .progress{ height: 100%; position: absolute; background-color: #b8e6ff;}
+  .message{ z-index: 1; width:100%; text-align:center; position: absolute;}
+  .message.error{ color: #e83b3b;}
+
+
+
+  .header_label .webix_el_box{
+	font-size:16px;
+}
+
+.header_label .webix_template {
+	font-size:16px;
+}
+
+.header_label A {
+    text-decoration: underline;
+}
+
+.t_elem {
+    padding: 7px;
+    border-radius: 5px;
+    margin-right: 10px;
+    margin-top: 5px;
+}
+
+.t_elem_plain {
+    background-color: rgba(255,255,255, 0.8) !important;
+}
+
+.t_elem_warn {
+    background-color: rgba(255, 208, 18, 0.7) !important;
+}
+
+.t_elem_danger {
+    background-color: rgba(255, 21, 0, 0.7) !important;
+    color: #fff;
+}
+
+.t_elem_clickable {
+    cursor: pointer;
+}
+
+.gohere-menu {
+    position: absolute;
+    background: white;
+    padding: 3px;
+    color: #666;
+    font-weight: bold;
+    border: 1px solid #999;
+    font-family: sans-serif;
+    font-size: 12px;
+    box-shadow: 1px 3px 3px rgba(0, 0, 0, .3);
+    margin-top: -10px;
+    margin-left: 10px;
+    cursor: pointer;
+}
+.gohere-menu:hover {
+    background: #eee;
+}
+
+

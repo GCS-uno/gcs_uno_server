@@ -1,0 +1,45 @@
+server {
+    listen 80;
+    server_name GCS.EXAMPLE.COM;               # !!!   Set your domain name
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name GCS.EXAMPLE.COM;               # !!!   Set your domain name
+    root /home/USER/gcs_uno_server/pilot-ui;   # !!!   Set correct directory for UI server
+
+    charset utf-8;
+
+    # Proxy pass to ui-server.js
+    location / {
+        proxy_pass http://localhost:8080;      # !!!   UI_SERVER_PORT from configs/server_config.js
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For  $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    ######    Nimble Streamer Proxy Pass
+    ## Uncomment below block to enable
+    #
+    #location /vs/ {
+    #    proxy_pass http://localhost:8081; # Nimble streamer WS host and port
+    #    proxy_http_version 1.1;
+    #    proxy_set_header Upgrade $http_upgrade;
+    #    proxy_set_header Connection $connection_upgrade;
+    #}
+    #
+    ######    End of Nimble Streamer Proxy Pass
+
+    access_log off;
+    error_log  off;
+
+    # LetsEncrypt common params
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+}
