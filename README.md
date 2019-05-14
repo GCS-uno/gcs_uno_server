@@ -1,4 +1,4 @@
-# gcs.uno-server
+# GCS.uno server
 
 GCS.uno server is a web-based Ground Control System app for autonomous air and ground vehicles
 with MAVLink-based autopilots such as Ardupilot, PX4 and others.
@@ -10,6 +10,6 @@ with MAVLink-based autopilots such as Ardupilot, PX4 and others.
 * External viewers without or limited control capabilities
 * 3rd party services integration
 
-[GCS.uno website](https://www.gcs.uno/)  \
-[Docs](https://docs.gcs.uno/)  \
-[Community forum](https://www.gcs.uno/community)  \
+[GCS.uno website](https://www.gcs.uno/)  
+[Docs](https://docs.gcs.uno/)  
+[Community forum](https://www.gcs.uno/community)  
