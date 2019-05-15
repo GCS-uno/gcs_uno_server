@@ -49,7 +49,6 @@
     "net": "^1.0.2",
     "nipplejs": "^0.8.1",
     "node-redis-pubsub": "^4.0.0",
-    "node-uuid": "^1.4.8",
     "redis": "^2.8.0",
     "socket.io": "^2.2.0",
     "socket.io-client": "^2.2.0",
