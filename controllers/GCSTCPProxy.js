@@ -30,7 +30,6 @@ class GCSTCPProxy {
         this.port_id = port_id;
 
         this.client = null;
-        this.client_ip = null;
         this.tcp_server = null;
 
         this.redisSubBuf = null;
@@ -96,7 +95,6 @@ class GCSTCPProxy {
 
                     // Новое соединение
                     _this.client = client;
-                    _this.client_ip = client.remoteAddr;
 
                     _this.client
                         .setTimeout(600000)
@@ -109,7 +107,6 @@ class GCSTCPProxy {
                         if( _this.client && _this.client.destroy) _this.client.destroy();
                         _this.save_gcs_tcp_status(1, `No GCS connected`);
                         _this.client = null;
-                        _this.client_ip = null;
                         // если соединение было закрыто с ошибкой, то ее пишет обработчик on_error
                     };
 
@@ -171,7 +168,7 @@ class GCSTCPProxy {
                 // При старте сервера
                 _this.tcp_server.on('listening', () => {
                     Logger.info(`TCP server started on port ${_this.port_id}`);
-                    _this.save_gcs_tcp_status(1, `started on p. ${_this.port_id}`);
+                    _this.save_gcs_tcp_status(1, `Running on port ${_this.port_id}`);
                     resolve('started');
                 });
 

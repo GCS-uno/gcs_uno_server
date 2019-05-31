@@ -437,7 +437,7 @@ class DroneClient {
 
                 }
                 // или возврат
-                else resolve();
+                else resolve('success');
 
             });
 
@@ -468,108 +468,6 @@ class DroneClient {
                 }
             };
         }();
-
-        //
-        // Дрон онлайн (ставится когда приходит инфо {online:1}
-        this.status_online = function(){
-
-            // Сообщение дрон ОНЛАЙН
-            if( _this.drone.item.status !== 'online' ) Message.info(_this.drone.item.name + ' ONLINE');
-
-            // Обновление статуса в таблице
-            //_this.drone.item.status = 'online';
-            DronesCollection.updateItem(_this.drone.id, {status: 'online'});
-
-            // Обновление вида, если он открыт у дрона
-            _this.view_online();
-
-        };
-
-        //
-        // Обновление вида, если он открыт у дрона
-        this.view_online = function(){
-
-            if( !_this.view_enabled || !_this.view || _this.view.isEnabled() ) return;
-
-            _this.set_marker_map(_this.view_els.map);
-            if( _this.home_marker.getPosition().lat() !== 0 || _this.home_marker.getPosition().lng() !== 0  ) _this.home_marker.setMap(_this.view_els.map);
-
-            _this.view.enable();
-            _this.view.$scope.fi_popup.enable();
-
-            webix.$$('dvt:tpl:offline').hide();
-
-            webix.$$('dvt:icon:statuses').show();
-            webix.$$('dvt:rs:mode').show();
-            _this.view_els.label_armed.show();
-
-            _this.view_els.telem_top.show({y:60, x: 50});
-
-            webix.$$('dvt:icon:actions').show();
-
-            // Показать джойстик если он включен в настройках
-            //if( !!_this.drone_data.params.joystick_enable ){
-            //    let joystick_view = _this.view.$scope.fi_popup.queryView({localId: 'cont:joystick1'});
-            //if( joystick_view ) joystick_view.show();
-            //}
-
-            // Начало отправки heartbeat. Остановка по закрытию панели управления
-            _this.heartbeat.start();
-
-            // Загрузить с сервера точки следа
-            _this.command('get_fp');
-
-            // След
-            _this.flight_path.show();
-            _this.mission.show();
-            _this.destination_path.show();
-
-        };
-
-        //
-        // Дрон оффлайн
-        this.status_offline = function(){
-
-            // Сообщение дрон ОФФЛАЙН
-            if( _this.drone.item.status === 'online' ) Message.warning(_this.drone.item.name + ' OFFLINE');
-
-            // Обновление статуса в таблице
-            _this.drone.item.status = 'offline';
-            DronesCollection.updateItem(_this.drone.id, {status: 'offline'});
-
-            _this.heartbeat.stop();
-
-            _this.view_offline();
-
-        };
-
-        //
-        // Обновление вида, если он открыт у дрона
-        this.view_offline = function(){
-            // Обновление вида, если он открыт у дрона
-            if( !_this.view_enabled || !_this.view  ) return;
-
-            _this.view.disable();
-            _this.view.$scope.fi_popup.disable();
-
-            webix.$$('dvt:icon:info').show();
-            setTimeout(function(){webix.$$('dvt:icon:info').callEvent('onItemClick')},500);
-
-            webix.$$('dvt:icon:statuses').hide();
-            webix.$$('dvt:rs:mode').hide();
-            _this.view_els.label_armed.hide();
-            _this.view_els.telem_top.hide();
-            webix.$$('dvt:btn:arm').hide();
-            webix.$$('dvt:btn:disarm').hide();
-            webix.$$('dvt:icon:actions').hide();
-
-            // Шаблон 'Drone offline'
-
-            if( webix.$$('dvt:tpl:offline') && !webix.$$('dvt:tpl:offline').isVisible() ){
-                webix.$$('dvt:tpl:offline').show();
-            }
-
-        };
 
         //
         // Отправка heartbeat и джойстика
@@ -737,6 +635,10 @@ class DroneClient {
                         else marker.setMap(_this.view_els.map);
 
                     }
+                }
+
+                ,show: function(){
+                    if( path.getPath().getLength() > 1 ) marker.setMap(_this.view_els.map);
                 }
 
                 ,hide: function(){
@@ -952,13 +854,13 @@ class DroneClient {
 
                         if( !_this.marker.getMap() ) _this.set_marker_map();
 
-                        if( t1.armed && webix.$$('dvt:btn:arm').isEnabled() ){
-                            webix.$$('dvt:btn:arm').hide();
-                            webix.$$('dvt:btn:disarm').show();
+                        if( t1.armed && _this.view_els.arm_btn.isEnabled() ){
+                            _this.view_els.arm_btn.hide();
+                            _this.view_els.disarm_btn.show();
                         }
-                        else if( !t1.armed && webix.$$('dvt:btn:disarm').isEnabled() ) {
-                            webix.$$('dvt:btn:disarm').hide();
-                            webix.$$('dvt:btn:arm').show();
+                        else if( !t1.armed && _this.view_els.disarm_btn.isEnabled() ) {
+                            _this.view_els.disarm_btn.hide();
+                            _this.view_els.arm_btn.show();
                         }
                     }
 
@@ -1066,6 +968,118 @@ class DroneClient {
             _this.socket.emit('drone_gcs_connect', _this.drone.id, connection_response);
         });
 
+        //
+        // Дрон онлайн (ставится когда приходит инфо {online:1}
+        this.status_online = function(){
+
+            // Сообщение дрон ОНЛАЙН
+            if( _this.drone.item.status !== 'online' ) Message.info(_this.drone.item.name + ' ONLINE');
+
+            // Обновление статуса в таблице
+            //_this.drone.item.status = 'online';
+            DronesCollection.updateItem(_this.drone.id, {status: 'online'});
+
+            // Обновление вида, если он открыт у дрона
+            _this.view_online();
+
+        };
+
+        //
+        // Обновление вида, если он открыт у дрона
+        this.view_online = function(){
+
+            if( !_this.view_enabled || !_this.view || _this.view.isEnabled() ) return;
+
+            _this.set_marker_map(_this.view_els.map);
+            if( _this.home_marker.getPosition().lat() !== 0 || _this.home_marker.getPosition().lng() !== 0  ) _this.home_marker.setMap(_this.view_els.map);
+
+            _this.view.enable();
+            _this.view.$scope.fi_popup.enable();
+
+            webix.$$('dvt:tpl:offline').hide();
+
+            webix.$$('dvt:icon:statuses').show();
+            webix.$$('dvt:rs:mode').show();
+            _this.view_els.label_armed.show();
+
+            _this.view_els.telem_top.show({y:60, x: 50});
+
+            webix.$$('dvt:btn:takeoff').show();
+            webix.$$('dvt:btn:land').show();
+            webix.$$('dvt:btn:rtl').show();
+
+            webix.$$('dvt:icon:actions').show();
+
+            // Показать джойстик если он включен в настройках
+            //if( !!_this.drone_data.params.joystick_enable ){
+            //    let joystick_view = _this.view.$scope.fi_popup.queryView({localId: 'cont:joystick1'});
+            //if( joystick_view ) joystick_view.show();
+            //}
+
+            // Начало отправки heartbeat. Остановка по закрытию панели управления
+            _this.heartbeat.start();
+
+            // Загрузить с сервера точки следа
+            _this.command('get_fp');
+
+            // След
+            _this.flight_path.show();
+            _this.mission.show();
+            _this.destination_path.show();
+
+        };
+
+        //
+        // Дрон оффлайн
+        this.status_offline = function(){
+
+            // Сообщение дрон ОФФЛАЙН
+            if( _this.drone.item.status === 'online' ) Message.warning(_this.drone.item.name + ' OFFLINE');
+
+            // Обновление статуса в таблице
+            _this.drone.item.status = 'offline';
+            DronesCollection.updateItem(_this.drone.id, {status: 'offline'});
+
+            _this.heartbeat.stop();
+
+            _this.view_offline();
+
+        };
+
+        //
+        // Обновление вида, если он открыт у дрона
+        this.view_offline = function(){
+            // Обновление вида, если он открыт у дрона
+            if( !_this.view_enabled || !_this.view  ) return;
+
+            _this.view.disable();
+            _this.view.$scope.fi_popup.disable();
+
+            webix.$$('dvt:icon:info').show();
+            setTimeout(function(){webix.$$('dvt:icon:info').callEvent('onItemClick')},500);
+
+            webix.$$('dvt:icon:statuses').hide();
+            webix.$$('dvt:rs:mode').hide();
+            _this.view_els.label_armed.hide();
+            _this.view_els.telem_top.hide();
+            _this.view_els.arm_btn.hide();
+            _this.view_els.disarm_btn.hide();
+            webix.$$('dvt:btn:takeoff').hide();
+            webix.$$('dvt:btn:land').hide();
+            webix.$$('dvt:btn:rtl').hide();
+
+            webix.$$('dvt:icon:actions').hide();
+            _this.view_els.takeoff_popup.hide();
+
+            // Шаблон 'Drone offline'
+
+            if( webix.$$('dvt:tpl:offline') && !webix.$$('dvt:tpl:offline').isVisible() ){
+                webix.$$('dvt:tpl:offline').show();
+            }
+
+        };
+
+
     }
 
 
@@ -1095,7 +1109,26 @@ class DroneClient {
             ,label_armed: webix.$$('dvt:lbl:armed')
             ,telem_top: view.$scope.telemetry_popup.queryView({localId:'tpl:telem_top'}) // Шаблон с телеметрией наверху
             ,map: view.$scope.$$('map:drone').getMap() // Объект карты Google
+
+            // Кнопки ARM, DISARM
+            ,arm_btn: webix.$$('dvt:btn:arm')
+            ,disarm_btn: webix.$$('dvt:btn:disarm')
+
+            // Кнопки управления
+            ,takeoff_btn: webix.$$('dvt:btn:takeoff')
+            ,land_btn: webix.$$('dvt:btn:land')
+            ,rtl_btn: webix.$$('dvt:btn:rtl')
+
+            // Всплывающие окна
+            ,takeoff_popup: view.$scope.takeoff_popup
+            ,takeoff_alt: view.$scope.takeoff_popup.queryView({localId: 'fld:alt'})
+            ,takeoff_confirm: view.$scope.takeoff_popup.queryView({localId: 'btn:takeoff'})
+
         };
+        //
+        //
+
+
 
         // Обработка кликов на карте
         this.mapClickListener = this.view_els.map.addListener('click', this.mapClickHandler);
@@ -1105,13 +1138,6 @@ class DroneClient {
 
         // Меню выбора полетного режима
         const mode_select = webix.$$('dvt:rs:mode');
-
-        // Кнопка Взлет
-        //const button_takeoff = view.$scope.action_menu.queryView({localId: 'btn:takeoff'});
-
-        // Кнопки ARM, DISARM
-        const arm_button = webix.$$('dvt:btn:arm');
-        const disarm_button = webix.$$('dvt:btn:disarm');
 
         // Кнопка загрузки миссии с борта
         const get_mission_button = view.$scope.action_menu.queryView({localId: 'btn:get_mission'});
@@ -1179,35 +1205,31 @@ class DroneClient {
         //
 
         // Кнопка Взлет
-        /*
-        button_takeoff.attachEvent('onItemClick', () => {
-            // Запуск таймера отсчета времени исполнения команды
-            let start = (new Date()).getTime();
-
-            // Блокируем кнопку
-            button_takeoff.disable();
-
-            // Оформить обработчик ответа на команду
-            // 22 = MAV_CMD -> MAV_CMD_NAV_TAKEOFF
-            this.command_ack.wait(22, function(result){ // MAV_RESULT
-                // После прихода ответа
-
-                // Разблокируем кнопку
-                button_takeoff.enable();
-
-                // Показываем сообщение
-                webix.message({
-                    text: 'TAKEOFF: ' + result + ' (' + ((new Date()).getTime() - start) + 'ms)'
-                    ,type: 'debug'
-                    ,expire: 2000
-                });
-            });
-
-            // Отправить команду
-            this.command('takeoff', {alt: 30});
-
+        _this.view_els.takeoff_btn.attachEvent('onItemClick', () => {
+            _this.view_els.takeoff_popup.show();
         });
-        */
+
+        // Подтверждение взлета
+        _this.view_els.takeoff_confirm.attachEvent('onItemClick', () => {
+            let alt = _this.view_els.takeoff_alt.getValue();
+            if( !alt ) alt = 1;
+
+            _this.command('takeoff', {alt: alt})
+                .then( result => {
+                    Message.info('Taking off at ' + alt);
+                })
+                .catch( err => {
+                    Message.error('Takeoff command failed: ' + err);
+                });
+
+            _this.view_els.takeoff_popup.hide();
+        });
+
+        // TODO Кнопка Посадка
+
+
+        // TODO Кнопка RTL
+
 
         // Переключение полетных режимов
         mode_select.attachEvent('onChange', function(new_value, old_value){
@@ -1237,7 +1259,7 @@ class DroneClient {
         });
 
         // Кнопка ARM
-        arm_button.attachEvent('onItemClick', function(){
+        _this.view_els.arm_btn.attachEvent('onItemClick', function(){
 
             webix.confirm({
                 ok: "ARM",
@@ -1246,7 +1268,7 @@ class DroneClient {
                 callback: function (result) { //setting callback
                     if( !result ) return;
 
-                    arm_button.disable();
+                    _this.view_els.arm_btn.disable();
 
                     _this.command('arm', {arm: 1}).then(function(res){
 
@@ -1256,13 +1278,13 @@ class DroneClient {
                         else {
                             Message.info('Command pending...');
                         }
-                        arm_button.enable();
+                        _this.view_els.arm_btn.enable();
 
                     }).catch(function(err){
 
                         Message.error('Failed to ARM: ' + err);
 
-                        arm_button.enable();
+                        _this.view_els.arm_btn.enable();
 
                     });
                 }
@@ -1271,7 +1293,7 @@ class DroneClient {
         });
 
         // Кнопка DISARM
-        disarm_button.attachEvent('onItemClick', function(){
+        _this.view_els.disarm_btn.attachEvent('onItemClick', function(){
             webix.confirm({
                 ok: "DISARM",
                 cancel: "Cancel",
@@ -1279,7 +1301,7 @@ class DroneClient {
                 callback: function (result) { //setting callback
                     if( !result ) return;
 
-                    disarm_button.disable();
+                    _this.view_els.disarm_btn.disable();
 
                     _this.command('arm', {arm: 0}).then(function(res){
 
@@ -1289,13 +1311,13 @@ class DroneClient {
                         else {
                             Message.info('Command pending...');
                         }
-                        disarm_button.enable();
+                        _this.view_els.disarm_btn.enable();
 
                     }).catch(function(err){
 
                         Message.error('Failed to DISARM: ' + err);
 
-                        disarm_button.enable();
+                        _this.view_els.disarm_btn.enable();
 
                     });
                 }

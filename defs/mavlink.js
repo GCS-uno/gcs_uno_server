@@ -26,12 +26,12 @@ const FLIGHT_MODES = {
             0: {name: 'STABILIZE', base: 1, custom: 0}
             ,1: {name: 'ACRO', base: 1, custom: 1}
             ,2: {name: 'ALT HOLD', base: 1, custom: 2}
-            ,3: {name: 'AUTO', base: 1, custom: 3}
-            ,4: {name: 'GUIDED', base: 1, custom: 4}
-            ,5: {name: 'LOITER', base: 1, custom: 5}
+            ,3: {name: 'AUTO', base: 89, custom: 3}
+            ,4: {name: 'GUIDED', base: 81, custom: 4}
+            ,5: {name: 'LOITER', base: 89, custom: 5}
             ,6: {name: 'RTL', base: 1, custom: 6}
             ,7: {name: 'CIRCLE', base: 1, custom: 7}
-            ,9: {name: 'LAND', base: 1, custom: 9}
+            ,9: {name: 'LAND', base: 217, custom: 9}
             ,11: {name: 'DRIFT', base: 1, custom: 11}
             ,13: {name: 'SPORT', base: 1, custom: 13}
             ,14: {name: 'FLIP', base: 1, custom: 14}
@@ -42,6 +42,7 @@ const FLIGHT_MODES = {
             ,19: {name: 'AVOID ADSB', base: 1, custom: 19}
             ,20: {name: 'GUIDED NOGPS', base: 1, custom: 20}
             ,21: {name: 'SMART RTL', base: 1, custom: 21}
+            ,22: {name: 'Flow Hold', base: 89, custom: 22}
         }
         ,rover: {
              0: {name: 'MANUAL', base: 1, custom: 0}

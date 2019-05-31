@@ -248,8 +248,6 @@ class MissionDownloadController {
     getWP(seq){
         const _this = this;
 
-        //console.log('SL', seq, _this.mission_items.length);
-
         // Если нет миссии
         if( !_this.mission_items.length || _this.mission_items.length < seq) return null;
 
@@ -666,7 +664,7 @@ class InfoController {
                     resolve(_this.data);
                 })
                 .catch( err => {
-                    console.log(err);
+                    Logger.error(err);
                     reject('Redis get error key ' + _this.drone.data_keys.DRONE_INFO_KEY)
                 } );
 
@@ -763,7 +761,7 @@ class HeartbeatController {
                     }
                 }
                 // Не известная установка
-                else drone.info.set({ft: 'unknown', ac: 'other'});
+                else drone.info.set({ft: 'unknown 2', ac: 'other'});
 
                 // Обновить параметры автопилота в джойстике
                 drone.joystick.setAPType();
@@ -1063,13 +1061,25 @@ class Telem1Controller {
                     }
                 }
 
+                // ArduCopter
+                else if( 3 === drone.data.autopilot && 'copter' === drone.info.get('ac') && 'custom' === drone.data.modes_type ){
+                    // RTL mode (возврат домой)
+                    if( this.get('custom_mode') === 6 ){
+                        this.set('dest_point', [drone.info.get('h_pos_lat'), drone.info.get('h_pos_lon'), 'h']);
+                    }
+                    // AUTO mode (движение по точкам миссии)
+                    else if( this.get('custom_mode') === 3 && mission_current > 0 ){
+                        this.set('dest_point', drone.mission_download.getWP(mission_current));
+                    }
+                }
+
             }
 
             dest_point_timeout = helpers.now();
 
         });
 
-        // 87 POSITION_TARGET_GLOBAL_INT !!! приходит только в PX4, аналог 62 в арудпилоте
+        // 87 POSITION_TARGET_GLOBAL_INT !!! приходит только в PX4, аналог 62 в арудпилоте + приходит в дроне Ардупилота
         drone.mavlink.on('POSITION_TARGET_GLOBAL_INT', fields => {
             // Это сообщение приходит в автоматических режимах
 
@@ -1077,15 +1087,15 @@ class Telem1Controller {
             // значения становятся null после посадки и перед остановкой этих сообщений
             // Если нет скорости, то нет и точки назначения
 
-            if( !fields.vx && !fields.vy && !fields.vz ){
-                if( this.get('dest_point') ) this.set('dest_point', null);
-
-                return;
-            }
-
-
             // PX4 Copter
             if( 12 === drone.data.autopilot && 'copter' === drone.info.get('ac') && 'custom' === drone.data.modes_type ){
+
+                if( !fields.vx && !fields.vy && !fields.vz ){
+                    if( this.get('dest_point') ) this.set('dest_point', null);
+
+                    return;
+                }
+
                 // RTL mode (возврат домой)
                 if( this.get('custom_mode') === 84148224 ){
                     this.set('dest_point', [drone.info.get('h_pos_lat'), drone.info.get('h_pos_lon'), 'h']);
@@ -1099,7 +1109,6 @@ class Telem1Controller {
                     // Только если скорость больше 2
                     if( (Math.abs(fields.vx) + Math.abs(fields.vy)) > 2 ){
                         this.set('dest_point', [fields.lat_int/10000000, fields.lon_int/10000000, 'n']);
-                        //console.log('OTHER dest', this.get('custom_mode'),   fields.lat_int/10000000, fields.lon_int/10000000);
                     }
                     else {
                         this.set('dest_point', null);
@@ -1475,6 +1484,7 @@ class CommandController {
 
             // Команда Взлет
             else if( 'takeoff' === data.command ){
+
                 this.drone.mavlink.sendMessage('COMMAND_LONG', {
                     target_system: this.drone.mavlink.sysid
                     ,target_component: this.drone.mavlink.compid
@@ -1517,6 +1527,31 @@ class CommandController {
 
                 }
 
+                // ArduCopter in Guided mode
+                else if( 3 === this.drone.data.autopilot && 'copter' === this.drone.info.get('ac') && 'custom' === this.drone.data.modes_type && this.drone.telem1.get('custom_mode') === 4 ){
+
+                    this.drone.mavlink.sendMessage('MISSION_ITEM', {
+                        target_system: this.drone.mavlink.sysid
+                        ,target_component: this.drone.mavlink.compid
+                        ,seq: 0
+                        ,frame: 3
+                        ,command: 16
+                        ,current: 2 // было 2 ?
+                        ,autocontinue: 1
+                        ,param1: 0
+                        ,param2: 0
+                        ,param3: 0
+                        ,param4: 0
+                        ,x: data.params.lat
+                        ,y: data.params.lng
+                        ,z: this.drone.telem1.get('alt')
+                        ,mission_type: 8
+                    });
+
+                    this.drone.telem1.set('dest_point', [data.params.lat, data.params.lng, 'n']);
+
+                }
+
                 // PX4 Copter in any mode
                 else if( 12 === this.drone.data.autopilot && 'copter' === this.drone.info.get('ac') ){
                     // 75 COMMAND_INT: {"target_system":1,"target_component":1,"frame":0,"command":192,"current":0,"autocontinue":0,"param1":-1,"param2":1,"param3":0,"param4":null,"x":557526702,"y":376231237,"z":69.802001953125}
@@ -1538,8 +1573,6 @@ class CommandController {
                     });
 
                     this.drone.telem1.set('dest_point', [data.params.lat, data.params.lng, 'n']);
-
-                    //console.log('PX4 Copter NAV pOInt', data.params);
 
                 }
 
@@ -1615,6 +1648,9 @@ class JoystickController {
         this.last_pos_time = 0; // timestamp последних данных из браузера
         this.pos_data = { jx: 0 ,jy: 0 ,jz: 0 ,jr: 0 };
         this.scheme = {x: 'jr', y: 'jz'};
+        this.ap_type = 'none';
+
+        this.last_pos_data1 = {vx: null, yr: null};
 
         this.setAPType();
     }
@@ -1626,12 +1662,12 @@ class JoystickController {
         // Каналы управления в зависимости от типа автопилота
         switch( this.drone.info.get('ac') ){
             case 'rover':
-                /* PX4 */ if( 12 === this.drone.data.autopilot ) this.scheme = { x: 'jr', y: 'jz' };
-                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) this.scheme = { x: 'jy', y: 'jz' };
+                /* PX4 */ if( 12 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jz' };this.ap_type = 'px_rover';}
+                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) {this.scheme = { x: 'jy', y: 'jz' };this.ap_type = 'ardu_rover';}
                 break;
             case 'copter':
-                /* PX4 */ if( 12 === this.drone.data.autopilot ) this.scheme = { x: 'jr', y: 'jx' };
-                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) this.scheme = { x: 'jr', y: 'jx' }; // jy
+                /* PX4 */ if( 12 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jx' };this.ap_type = 'px4_copter';}
+                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jx' }; this.ap_type = 'ardu_copter';}// jy
                 break;
             default:
                 this.scheme = { x: 'jx', y: 'jy' };
@@ -1664,15 +1700,51 @@ class JoystickController {
         // Реализация через MANUAL_CONTROL (69)
 
         // Отправляем сообщение
-        this.drone.mavlink.sendMessage('MANUAL_CONTROL', {
-             target: this.drone.mavlink.sysid
-            ,target_component: this.drone.mavlink.compid
-            ,x: data_is_valid ? this.pos_data.jx : 0
-            ,y: data_is_valid ? this.pos_data.jy : 0
-            ,z: data_is_valid ? this.pos_data.jz : 0
-            ,r: data_is_valid ? this.pos_data.jr : 0
-            ,buttons: 0
-        });
+        // Arducopter in guided mode
+        if( this.ap_type === 'ardu_copter' && this.drone.telem1.get('armed') && this.drone.telem1.get('mode') === 4 ){
+
+            let vx = data_is_valid ? Math.round(this.pos_data.jx/200) : 0;
+            let yr = data_is_valid ? this.pos_data.jr/500 : 0;
+
+            if( vx === 0 && yr === 0 && this.last_pos_data1.vx === 0 && this.last_pos_data1.yr === 0 ) return;
+
+            // SET_POSITION_TARGET_LOCAL_NED
+            this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', {
+                time_boot_ms: helpers.now_ms()
+                ,target: this.drone.mavlink.sysid
+                ,target_component: this.drone.mavlink.compid
+                ,coordinate_frame: 9
+                ,type_mask: 1479
+                ,x: null
+                ,y: null
+                ,z: null
+                ,vx: vx
+                ,vy: 0
+                ,vz: 0
+                ,afx: null
+                ,afy: null
+                ,afz: null
+                ,yaw: 0
+                ,yaw_rate: yr
+            });
+
+            this.last_pos_data1 = {vx: vx, yr: yr};
+
+        }
+        else {
+            this.drone.mavlink.sendMessage('MANUAL_CONTROL', {
+                target: this.drone.mavlink.sysid
+                ,target_component: this.drone.mavlink.compid
+                ,x: data_is_valid ? this.pos_data.jx : 0
+                ,y: data_is_valid ? this.pos_data.jy : 0
+                ,z: data_is_valid ? this.pos_data.jz : 0
+                ,r: data_is_valid ? this.pos_data.jr : 0
+                ,buttons: 0
+            });
+        }
+
+
+
     }
 
 }
@@ -1846,19 +1918,19 @@ class DroneServer {
         if( udp_proxy_restart ){
             this.RPC.req(RK.DRONE_UDP_PROXY_RESTART(), {drone_id: this.id, port: this.params.udp_port })
                 .then(function(data){
-                    console.log('UDP RESTARTED ', data);
+                    Logger.info('UDP RESTARTED ', data);
                 })
                 .catch( err => {
-                    console.log('UDP ERR RESTARTED ', err);
+                    Logger.info('UDP ERR RESTARTED ', err);
                 });
         }
         if( tcp_proxy_restart ){
             this.RPC.req(RK.DRONE_GCS_TCP_PROXY_RESTART(), {drone_id: this.id, port: this.params.udp_port })
                 .then(function(data){
-                    console.log('TCP RESTARTED ', data);
+                    Logger.info('TCP RESTARTED ', data);
                 })
                 .catch( err => {
-                    console.log('TCP ERR RESTARTED ', err);
+                    Logger.info('TCP ERR RESTARTED ', err);
                 });
         }
 
@@ -1875,10 +1947,10 @@ class DroneServer {
         if( this.info.get('udp_ip_s') === 1 ){
             this.RPC.req(RK.DRONE_UDP_PROXY_STOP(), { drone_id: this.id })
                 .then(function(data){
-                    console.log('UDP STOPPED ', data);
+                    Logger.info('UDP STOPPED ', data);
                 })
                 .catch( err => {
-                    console.log('UDP ERR STOP ', err);
+                    Logger.info('UDP ERR STOP ', err);
                 });
         }
 
@@ -1886,14 +1958,14 @@ class DroneServer {
         if( this.info.get('tcp_op_s') === 1 ){
             this.RPC.req(RK.DRONE_GCS_TCP_PROXY_STOP(), { drone_id: this.id })
                 .then(function(data){
-                    console.log('TCP STOPPED ', data);
+                    Logger.info('TCP STOPPED ', data);
                 })
                 .catch( err => {
-                    console.log('TCP ERR STOP ', err);
+                    Logger.info('TCP ERR STOP ', err);
                 });
         }
 
-        console.log('DroneServer destroyed ' + this.id);
+        Logger.info('DroneServer destroyed ' + this.id);
 
     }
 

@@ -18,6 +18,7 @@ export default class DroneView extends JetView {
         this.statuses_popup = this.ui(statuses_popup);
         this.fi_popup = this.ui(fi_popup);
         this.telemetry_popup = this.ui(telemetry_popup);
+        this.takeoff_popup = this.ui(takeoff_popup);
 
         top_controls_id = webix.$$('top_view_controls').addView(view_controls);
 
@@ -211,6 +212,35 @@ const statuses_popup = {
     }
 };
 
+// Окошко с установкой высоты для взлета
+const takeoff_popup = {
+    view: 'window'
+    ,id: 'drone_view_popup_takeoff'
+    ,headHeight: 0
+    ,head: false
+    ,borderless: true
+    ,position: 'center'
+    ,move: true
+    ,body: {
+        padding: 20
+        ,width: 300
+        //,height: 150
+        ,rows: [
+            { view: 'counter', label: 'Takeoff altitude', step: 1, value: 10, min: 1, max: 100, labelWidth: 130, localId: 'fld:alt' }
+            ,{height:20}
+            ,{
+                cols: [
+                    { view: 'button', label: 'Takeoff', type: 'iconButton', icon: 'mdi mdi-airplane-takeoff', localId: 'btn:takeoff' }
+                    ,{width:20}
+                    ,{ view: 'button', label: 'Cancel', type: 'iconButton', icon: 'mdi mdi-cancel', click: function(){
+                            this.getTopParentView().hide();
+                        } }
+                ]
+            }
+        ]
+    }
+};
+
 //
 // Кнопки для верхней панели
 const view_controls = {
@@ -219,14 +249,18 @@ const view_controls = {
 
         // Кнопка с информацией
         { view: 'icon', id: 'dvt:icon:info', icon: 'mdi mdi-information', popup: 'drone_view_popup_info', tooltip: 'Drone info' }
+        // Drone offline label
         ,{view: 'label', id: 'dvt:tpl:offline', label: 'drone offline', borderless: true, hidden: true, width: 150, css: "header_label" }
         // Кнопка со списком статусов
         ,{ view: 'icon', id: 'dvt:icon:statuses', icon: 'mdi mdi-bullhorn', popup: 'drone_view_popup_statuses', hidden: true, tooltip: 'Statuses' }
         ,{ width: 20 }
+        // Label armed / disarmed
         ,{view: 'label', label: '', width: 80, id: 'dvt:lbl:armed', hidden: true }
+        // ARM / DISARM кнопки
         ,{view: 'button', value: 'ARM', id: 'dvt:btn:arm', width: 100, hidden: true, tooltip: 'Activate motors' }
         ,{view: 'button', value: 'DISARM', id: 'dvt:btn:disarm', type: 'danger', width: 100, hidden: true, tooltip: 'Deactivate motors'}
         ,{ width: 20 }
+        // Flight mode set status
         ,{
             view: 'richselect'
             ,id: 'dvt:rs:mode'
@@ -237,36 +271,36 @@ const view_controls = {
             ,tooltip: 'Set flight mode'
         }
 
-        // Кнопки взлет,посадка, RTL
+        // Кнопки взлет, посадка, RTL
         ,{
             view: 'button'
             ,type: 'iconButton'
-            ,localId: 'btn:takeoff'
+            ,id: 'dvt:btn:takeoff'
             ,label: 'Takeoff'
             ,icon: 'mdi mdi-airplane-takeoff'
             ,tooltip: 'Takeoff from current location'
             ,autowidth: true
-            , hidden: true
+            ,hidden: true
         }
         ,{
             view: 'button'
             ,type: 'iconButton'
-            ,localId: 'btn:land'
+            ,id: 'dvt:btn:land'
             ,label: 'Land'
             ,icon: 'mdi mdi-airplane-landing'
             ,tooltip: 'Land at current location'
             ,autowidth: true
-            , hidden: true
+            ,hidden: true
         }
         ,{
             view: 'button'
             ,type: 'iconButton'
-            ,localId: 'btn:rtl'
+            ,id: 'dvt:btn:rtl'
             ,label: 'RTL'
             ,icon: 'mdi mdi-home'
             ,tooltip: 'Return home'
             ,autowidth: true
-            , hidden: true
+            ,hidden: true
         }
 
         ,{}
@@ -432,8 +466,9 @@ const fi_popup = {
                 ,borderless: true
                 ,cols: [
 
+                    {}
                     // Горизонт
-                    {
+                    ,{
                         view: 'fi_horizon'
                         ,localId: 'fi:horizon'
                         ,size: 160
@@ -441,6 +476,8 @@ const fi_popup = {
                         ,width: 170
                         ,borderless: true
                     }
+
+                    ,{}
 
                     // Компас
                     ,{
@@ -451,6 +488,7 @@ const fi_popup = {
                         ,width: 170
                         ,borderless: true
                     }
+                    ,{}
                 ]
             }
 
