@@ -55,13 +55,26 @@ webix.ready(() => {
 	//
 	// Socket.io Plugin
 	app.use(io_service, {});
+	app.getService('io').connect(); // returns Promise
 
 	//
 	// Render app
 	app.render().then(function(){
 		// Connect to socket.io
-		app.getService('io').connect(); // returns Promise
+		//app.getService('io').connect(); // returns Promise
 	});
+
+	window.addEventListener("gamepadconnected", function(e) {
+		console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
+			e.gamepad.index, e.gamepad.id,
+			e.gamepad.buttons.length, e.gamepad.axes.length);
+	});
+
+	window.addEventListener("gamepaddisconnected", function(e) {
+		console.log("Gamepad disconnected from index %d: %s",
+			e.gamepad.index, e.gamepad.id);
+	});
+
 
 
 });
@@ -77,15 +90,14 @@ webix.protoUI({
 		width: 150
 		,height: 150
 		,size: 150
-		//,on:{'onItemClick' : function(){}} //attached events
 	},
 	$init: function(config){
 
-		this.$view.innerHTML = "<div class=\"joystick\"></div>";
+		this.j_id = config.j_id;
 
-		let el = this.$view.querySelectorAll("div.joystick")[0];
+		this.$view.innerHTML = '<div class="joystick" id=' + config.j_id + '></div>';
 
-		// const _this = this;
+		let el = this.$view.querySelector('#' + config.j_id);
 
 		this.controller = function(xy){};
 
@@ -97,11 +109,11 @@ webix.protoUI({
 		});
 	}
 
-	,showJoystick: function(){ //console.log('show joysick');
+	,showJoystick: function(){
 
 		const _this = this;
 
-		let el = this.$view.querySelectorAll("div.joystick")[0];
+		let el = this.$view.querySelector('#' + this.j_id);
 
 		const joystick = nipplejs.create({
 			zone: el,
@@ -122,7 +134,6 @@ webix.protoUI({
 			_this.controller({x: 0, y: 0});
 		});
 
-		//console.log(joystick);
 	}
 
 	,setController: function(controller){
@@ -231,7 +242,7 @@ webix.protoUI({
 
 
 //
-// Предупреждение перед закрытием окна пользователем
-window.onbeforeunload = function() {
-	return "Are you sure to exit?";
-};
+// FIXME Предупреждение перед закрытием окна пользователем
+//window.onbeforeunload = function() {
+//	return "Are you sure to exit?";
+//};

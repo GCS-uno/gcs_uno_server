@@ -128,6 +128,26 @@ class DroneClient {
                 return parseInt(_this.drone_data.info.get('online')) === 1;
             }
 
+            // Joystick controller
+            ,joystick: function(){
+
+                let jlx = 0, jly = 0, jrx = 0, jry = 0;
+
+                return {
+                    get: function(){
+                        return { jlx: jlx, jly: jly, jrx: jrx, jry: jry };
+                    }
+                    ,set_left: function(pos){
+                        jlx = Math.round(pos.x);
+                        jly = Math.round(pos.y);
+                    }
+                    ,set_right: function(pos){
+                        jrx = Math.round(pos.x);
+                        jry = Math.round(pos.y);
+                    }
+                }
+            }()
+
         };
 
         this.drone_data = { // == redis_keys -> DRONE_INFO_KEY
@@ -234,22 +254,6 @@ class DroneClient {
                 }
             })
 
-            // Joystick controller
-            ,joystick: function(){
-
-                 let jx = 0, jy = 0;
-
-                 return {
-                     get: function(){
-                         return {x1: jx, y1: jy};
-                     }
-                     ,set: function(pos){
-                         jx = Math.round(pos.x);
-                         jy = Math.round(pos.y);
-                     }
-                 }
-            }()
-
         };
 
         this.view = null;
@@ -330,8 +334,8 @@ class DroneClient {
 
         this.mapClickListener = null;
 
+        // Go here context menu на карте
         const go_here_menu = new GoHereMenu();
-
         let ignore_next_click = false;
         go_here_menu.gohere = function(lat, lng){
             ignore_next_click = true;
@@ -341,6 +345,8 @@ class DroneClient {
             _this.command('nav2p', {lat: lat, lng: lng});
         };
 
+        //
+        // Обработчик кликов на карте для установки точки назначения
         this.mapClickHandler = function(event){
             if( ignore_next_click ){
                 ignore_next_click = false;
@@ -361,7 +367,8 @@ class DroneClient {
             const MAV_CMD = {
                 // команды MAV_CMD
                  takeoff: 22
-                ,land: 21
+                ,land: 11
+                ,rtl: 11
                 ,switch_relay: 181
                 ,set_mode: 11 // MAV_CMD_DO_SET_MODE
                 ,arm: 400
@@ -385,7 +392,6 @@ class DroneClient {
                     let command_timeout = null;
                     let command_timeout_func = function () {
                         _this.command_ack.clear(MAV_CMD[command]);
-                        //console.log('COMMAND TIMEOUT', command);
                         reject('timeout');
                     };
 
@@ -394,8 +400,6 @@ class DroneClient {
 
                     // Включить ожидание ответа на команду
                     _this.command_ack.wait(MAV_CMD[command], function (result) {
-                        //console.log('COMM ACK', command);
-                        // MAV_RESULT
                         // отмена таймаута
                         clearTimeout(command_timeout);
 
@@ -486,9 +490,9 @@ class DroneClient {
 
             const send_joystick = function(){
                 if( _this.drone.isOnline() ){
-                    let jd = _this.drone_data.joystick.get();
+                    let jd = _this.drone.joystick.get();
                     _this.command('joystick', jd);
-                    _this.drone_data.telem_10hz.setValues(jd);
+                    //_this.drone_data.telem_10hz.setValues(jd); // для визуализации данных джойстика
                 }
             };
 
@@ -508,6 +512,8 @@ class DroneClient {
                     status = false;
                     if( intervals.heartbeat ) clearInterval(intervals.heartbeat);
                     if( intervals.joystick ) clearInterval(intervals.joystick);
+                    intervals.heartbeat = null;
+                    intervals.joystick =null;
                 }
                 ,status: function(){
                     return status;
@@ -784,7 +790,6 @@ class DroneClient {
 
             };
         }();
-
 
         //
         // Ответ на запрос присоединения
@@ -1124,10 +1129,11 @@ class DroneClient {
             ,takeoff_alt: view.$scope.takeoff_popup.queryView({localId: 'fld:alt'})
             ,takeoff_confirm: view.$scope.takeoff_popup.queryView({localId: 'btn:takeoff'})
 
+            ,video_switch: view.$scope.fi_popup.queryView({localId: 'switch:video_src'})
+
         };
         //
         //
-
 
 
         // Обработка кликов на карте
@@ -1161,7 +1167,8 @@ class DroneClient {
 
 
         // Джойстик
-        const joystick = view.$scope.fi_popup.queryView({view: 'joystick'});
+        const joystick_left = view.$scope.fi_popup.queryView({j_id: 'j_left'}),
+              joystick_right = view.$scope.fi_popup.queryView({j_id: 'j_right'});
 
         // Если установлен тип и доступны режимы
         if( _this.drone_data.modes && _this.drone_data.modes.length ){
@@ -1225,10 +1232,31 @@ class DroneClient {
             _this.view_els.takeoff_popup.hide();
         });
 
-        // TODO Кнопка Посадка
+        // Кнопка Посадка
+        _this.view_els.land_btn.attachEvent('onItemClick', () => {
 
+            _this.command('land', {})
+                .then( result => {
+                    Message.info('Landing');
+                })
+                .catch( err => {
+                    Message.error('Land command failed: ' + err);
+                });
 
-        // TODO Кнопка RTL
+        });
+
+        // Кнопка RTL
+        _this.view_els.rtl_btn.attachEvent('onItemClick', () => {
+
+            _this.command('rtl', {})
+                .then( result => {
+                    Message.info('Returning home');
+                })
+                .catch( err => {
+                    Message.error('RTL command failed: ' + err);
+                });
+
+        });
 
 
         // Переключение полетных режимов
@@ -1556,7 +1584,36 @@ class DroneClient {
         });
 
         // Джойстик
-        joystick.setController( _this.drone_data.joystick.set );
+        joystick_left.setController( _this.drone.joystick.set_left );
+        joystick_right.setController( _this.drone.joystick.set_right );
+
+        // переключатель видеоканалов
+        _this.view_els.video_switch.attachEvent('onChange', value => {
+            Message.info('Video #' + value);
+
+            let stream_url = '';
+            stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
+            //stream_url += window.location.hostname;
+            stream_url += '192.168.0.22';
+            stream_url += (window.location.port === '' ? '' : ':8081');
+            stream_url += '/vs/test_video_' + value;
+
+            _this.player.destroy();
+
+            _this.player = window.SLDP.init({
+                container: 'video_player',
+                stream_url: stream_url,
+                width: 500,
+                height: 285,
+                buffering: 0,
+                latency_tolerance: 50,
+                adaptive_bitrate: false,
+                muted: true,
+                autoplay: true
+            });
+
+        });
+
 
         // Видео
         try {
@@ -1565,7 +1622,8 @@ class DroneClient {
 
                 let stream_url = '';
                 stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
-                stream_url += window.location.hostname;
+                //stream_url += window.location.hostname;
+                stream_url += '192.168.0.22';
                 stream_url += (window.location.port === '' ? '' : ':8081');
                 stream_url += '/vs/' + _this.drone_data.params.rtsp_video_url.trim();
 
@@ -1575,11 +1633,34 @@ class DroneClient {
                     width: 500,
                     height: 285,
                     buffering: 0,
-                    latency_tolerance: 100,
+                    latency_tolerance: 50,
                     adaptive_bitrate: false,
                     muted: true,
                     autoplay: true
                 });
+
+                /*
+                _this.player.setCallbacks({
+
+                    onConnectionStarted: function( url ){
+                        console.log('connection started ' + url);
+                    }
+                    ,onConnectionEstablished: function( streams ){
+                        console.log('conn established', streams);
+                    }
+                    ,onPlay: function(){
+                        console.log('video on play');
+                    }
+                    ,onConnectionClosed: function(){
+                        console.log('video connection closed');
+                    }
+                    ,onError: function(error){
+                        console.log('video stream error', error);
+                    }
+
+                });
+                 */
+
             }
             else {
                 video_noise_tpl.show();

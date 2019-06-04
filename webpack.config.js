@@ -71,6 +71,9 @@ module.exports = function(env) {
 				"/socket.io": {
 					target: "http://127.0.0.1:8080",
 					ws: true
+				},
+				"/api": {
+					target: "http://127.0.0.1:8080"
 				}
 			}
 		}

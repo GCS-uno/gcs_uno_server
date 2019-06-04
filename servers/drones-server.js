@@ -29,7 +29,6 @@ DroneModel.getList().run()
 
 
 // Смотрим изменения в БД с дронами и управляем серверами
-
 DroneModel.look()
     .then(function(cursor){
         cursor.each(function(err, data){

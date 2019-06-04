@@ -10,6 +10,7 @@ const Message = {
 
     ,error: function(message){
         webix.message({text: message, type: 'error'});
+        console.error(message);
     }
 
 };

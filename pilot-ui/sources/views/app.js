@@ -25,7 +25,7 @@ export default class AppView extends JetView {
 	//init(view, url){}
 	ready(view, url){
 
-        // Здесь загружаем коллекции
+        // Здесь загружаем коллекции, которые нельзя обновлять при открытии вкладок
         DronesCollection.List();
 
     }

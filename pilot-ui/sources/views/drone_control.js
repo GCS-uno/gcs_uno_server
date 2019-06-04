@@ -32,13 +32,18 @@ export default class DroneView extends JetView {
         const map = this.$$('map:drone');
         const top_toolbar = webix.$$('top_toolbar');
 
-
+        // Создание вида после загрузки карты
         map.getMap(true).then(function(mapObj) {
+
+            // Установка параметров карты
             mapObj.setOptions(map_options);
 
+            // Включить панель с полетными инструментами
             _this.fi_popup.show({y:60, x: (top_toolbar.$width - 530)});
 
-            _this.fi_popup.queryView({view: 'joystick'}).showJoystick();
+            // Включить джойстики
+            _this.fi_popup.queryView({j_id: 'j_left'}).showJoystick();
+            _this.fi_popup.queryView({j_id: 'j_right'}).showJoystick();
 
             // drone_id передается в параметре открытия вида
             const drone_id = _this.getParam("id");
@@ -220,7 +225,6 @@ const takeoff_popup = {
     ,head: false
     ,borderless: true
     ,position: 'center'
-    ,move: true
     ,body: {
         padding: 20
         ,width: 300
@@ -336,7 +340,7 @@ const map_config = {
     center:[ 55, 37 ]
 };
 
-// Панель с телеметрией
+// Панель с телеметрией сверху карты
 const telemetry_popup = {
     view: 'window'
     ,id: 'drone_view_popup_telemetry'
@@ -414,7 +418,7 @@ const telemetry_popup = {
     }
 };
 
-// Панель с видео и полетными индикаторами
+// Панель с видео, полетными индикаторами и джойстиками
 const fi_popup = {
     view: 'window'
     ,id: 'drone_view_popup_fi'
@@ -425,7 +429,6 @@ const fi_popup = {
     ,body: {
         width:520
         ,borderless: true
-        //,css: 'transp'
         ,rows: [
 
             // video screen
@@ -446,6 +449,22 @@ const fi_popup = {
                         template: '<img src="static/white_noise.gif" class="video_noise_320">'
                         ,height: 300
                         ,localId: 'tpl:video_noise'
+                    }
+                ]
+            }
+
+            // Переключатели источника видео
+            ,{
+                cols: [
+                    {
+                        view: 'segmented'
+                        ,localId: 'switch:video_src'
+                        ,value: 1
+                        ,options: [
+                             { id: 1, value: 'Camera 1' }
+                            ,{ id: 2, value: 'Camera 2' }
+                            ,{ id: 3, value: 'Camera 3' }
+                        ]
                     }
                 ]
             }
@@ -492,21 +511,40 @@ const fi_popup = {
                 ]
             }
 
-            // Джойстик
+            // Джойстики
             ,{
-                borderless: true
-                ,localId: 'cont:joystick1'
-                ,height: 150
-                ,cols: [
-                    {}
-                    ,{
-                        view: 'joystick'
-                        ,css: 'transp'
-                        ,borderless: true
+                cols: [
+                    {
+                        borderless: true
+                        ,localId: 'cont:joystick1'
+                        ,height: 150
+                        ,cols: [
+                            {}
+                            ,{
+                                view: 'joystick'
+                                ,css: 'transp'
+                                ,borderless: true
+                                ,j_id: 'j_left'
+                            }
+                            ,{}
+                        ]
                     }
-                    ,{}
+                    ,{
+                        borderless: true
+                        ,localId: 'cont:joystick2'
+                        ,height: 150
+                        ,cols: [
+                            {}
+                            ,{
+                                view: 'joystick'
+                                ,css: 'transp'
+                                ,borderless: true
+                                ,j_id: 'j_right'
+                            }
+                            ,{}
+                        ]
+                    }
                 ]
-                //,hidden: true
             }
 
 

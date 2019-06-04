@@ -6,7 +6,8 @@ const common_config = require('../configs/common_config')
      ,validators = require('./form_validators') // Form fields validators
      ,DroneModel = require('./../db_models/Drone') // Drone model
      ,FlightPlanModel = require('./../db_models/FlightPlan') // Полетные задания пилотов
-     ,FlightPlanItemModel = require('./../db_models/FlightPlanItem');
+     ,FlightPlanItemModel = require('./../db_models/FlightPlanItem')
+     ,FlightLogModel = require('./../db_models/FlightLog');
 
 
 
@@ -76,7 +77,6 @@ const RPC_routes = {
     // returns array of Drones objects
     dronesList: function(data, resolve, reject){
         DroneModel.getList().run().then(function(result) {
-            //console.log(result);
             resolve(result);
         }).catch(function(err){
             Logger.error('get drones list error');
@@ -710,6 +710,161 @@ const RPC_routes = {
 
             .catch( reject );
     },
+
+
+
+    //
+    //     Логи
+    //
+
+    //
+    // Список логов
+    logsList: function(data, resolve, reject){
+        FlightLogModel.getList().run().then(function(result) {
+            resolve(result);
+        }).catch(function(err){
+            Logger.error('get logs list error');
+            Logger.error(err);
+            reject('No data');
+        });
+    },
+
+    //
+    // TODO Загрузка данных одного лога {id: log_ID}
+    logGet: function(data, resolve, reject){
+        if( !_.has(data, 'id') ){
+            reject('no id');
+            return;
+        }
+
+        FlightLogModel.get(data.id.trim()).run()
+            .then(function(log) {
+
+                let fields = {};
+
+                try {
+
+                    const spawn = require("child_process").spawn;
+
+                    const pyprocess = spawn('python',["./../utils/pymavlink/DFReader.py",
+                        './../logs/' + log.bin_file] );
+
+                    let i = 0;
+
+                    let parsed_strings = '';
+
+                    // Takes stdout data from script which executed
+                    // with arguments and send this data to res object
+                    pyprocess.stdout.on('data', function(data) {
+                        parsed_strings = parsed_strings + data;
+                    } );
+                    pyprocess.stdout.on('close', function() {
+
+                        let sf = parsed_strings.split("#$#");
+
+                        let m_list = {};
+                        let start_time = null;
+                        let finish_time = 0;
+
+                        // Раскидать сообщения по группам
+                        _.each(sf, function(line, ind){
+
+                            let ls = line.replace('NaN', '""');
+
+                            try {
+                                let m = JSON.parse(ls);
+
+                                if( _.has(m, 'mavpackettype') ){
+                                    if( _.has(m_list, m['mavpackettype']) ){
+                                        m_list[m['mavpackettype']].push(m);
+                                    }
+                                    else {
+                                        m_list[m['mavpackettype']] = [m];
+                                    }
+
+                                    if( _.has(m, 'TimeUS') ){
+                                        let timeus = parseInt(m['TimeUS']);
+                                        if( !start_time ) start_time = timeus;
+                                        if( timeus > finish_time ) finish_time = timeus;
+                                    }
+                                }
+
+                            }
+                            catch (err ){
+                                console.log('ERR', ind);
+                                console.log(ls);
+                            }
+                        });
+
+                        let log_time = Math.round((finish_time-start_time)/1000000);
+
+                        /* Распечатать список групп и полей
+                        _.mapKeys(m_list, (value, key) => {
+                            //console.log(key, value.length);
+                            console.log(key);
+                            _.mapKeys(value[0], function(v,k){
+                                if( 'TimeUS' !== k && 'mavpackettype' !== k ) console.log('    ' + k);
+                            });
+                        });
+                         */
+
+                        console.log('Log time, sec: ', log_time);
+                        console.log('Cache size KB', Math.round(parsed_strings.length/1024));
+
+                        // Выбрать данные по высоте
+                        // POS.RelHomeAlt
+                        let group = 'POS';
+                        let field = 'RelHomeAlt';
+                        let freq = 5;
+
+                        let chart_data = [];
+
+                        if( _.has(m_list, group) ){
+                            let min_alt = 0;
+                            let max_alt = 0;
+                            let prev_rec_time = -1;
+
+                            _.each(m_list[group], (rec) => {
+                                let alt = parseFloat(rec[field]).toFixed(2);
+                                if( alt < min_alt ) min_alt = alt;
+                                if( alt > max_alt ) max_alt = alt;
+
+                                let rec_time = Math.round((parseInt(rec['TimeUS'])-start_time)/(1000000/freq));
+
+                                if( rec_time > prev_rec_time ){
+                                    chart_data.push({time: rec_time, alt: alt});
+                                    prev_rec_time = rec_time;
+                                }
+
+                            });
+
+                            console.log('CL', chart_data.length, min_alt, max_alt);
+                        }
+
+                        resolve({ info: 'info', alt_chart: chart_data });
+
+                    } );
+                    pyprocess.stdout.on('end', function() {
+                        //console.log('END');
+                    } );
+                    pyprocess.stdout.on('error', function() {
+                        console.log('ERROR');
+                        reject('Bin parse error');
+                    } );
+
+
+                }
+                catch( err ){
+                    console.log('ERR', err);
+                    reject('Bin parse error');
+                }
+
+            })
+            .catch(function(){
+                reject('Log not found in DB');
+            });
+    }
+
 
 };
 

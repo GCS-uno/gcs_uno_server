@@ -4,6 +4,7 @@ import {JetView, plugins} from "webix-jet";
 const menu_data = [
     { id: "drones_list", icon: "mdi mdi-drone", value: "Drones" }
     ,{ id: "flight_plans_list", icon: "mdi mdi-map-marker-distance", value: "Flight Plans" }
+	,{ id: "logs_list", icon: "mdi mdi-file-table", value: "Flight Logs" }
 ];
 
 

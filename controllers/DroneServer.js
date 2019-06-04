@@ -763,9 +763,6 @@ class HeartbeatController {
                 // Не известная установка
                 else drone.info.set({ft: 'unknown 2', ac: 'other'});
 
-                // Обновить параметры автопилота в джойстике
-                drone.joystick.setAPType();
-
             }
 
             fields.base_mode = parseInt(fields.base_mode);
@@ -1439,6 +1436,18 @@ class CommandController {
             _this.drone.send2io('fp', _this.drone.flight_path.getPath());
         }
 
+        // Джойстик
+        else if( 'joystick' === data.command && _this.drone.params.joystick_enable ){
+
+            let jlx = parseInt(data.params.jlx) || 0,
+                jly = parseInt(data.params.jly) || 0,
+                jrx = parseInt(data.params.jrx) || 0,
+                jry = parseInt(data.params.jry) || 0;
+
+            this.drone.joystick.set(jlx, jly, jrx, jry);
+
+        }
+
         //
         //     Команды для преобразования в mavlink и отправки на борт
         else {
@@ -1455,7 +1464,7 @@ class CommandController {
             if( 'set_mode' === data.command ){
                 // на входе data.params.mode
                 if( this.drone.data.modes && this.drone.data.modes.hasOwnProperty(data.params.mode) ){
-                    // TODO command set mode
+
                     this.drone.mavlink.sendMessage('SET_MODE', {
                         target_system: this.drone.mavlink.sysid
                         ,base_mode: this.drone.data.modes[data.params.mode].base
@@ -1578,20 +1587,39 @@ class CommandController {
 
             }
 
-            // TODO Команда Посадка
+            // Команда Посадка
             else if( 'land' === data.command ) {
-                /*
+                // Arducopter
+                if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot && this.drone.telem1.get('armed') ){
+                    this.drone.mavlink.sendMessage('SET_MODE', {
+                        target_system: this.drone.mavlink.sysid
+                        ,base_mode: 217
+                        ,custom_mode: 9
+                    });
+                }
 
+                // TODO PX4 Copter land
+                else {
 
-                 */
+                }
+
             }
 
-            // TODO Команда RTL
+            // Команда RTL
             else if( 'rtl' === data.command ) {
-                /*
+                // Arducopter
+                if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot && this.drone.telem1.get('armed') ){
+                    this.drone.mavlink.sendMessage('SET_MODE', {
+                        target_system: this.drone.mavlink.sysid
+                        ,base_mode: 217
+                        ,custom_mode: 6
+                    });
+                }
 
+                // TODO PX4 Copter land
+                else {
 
-                 */
+                }
             }
 
             // Управление реле
@@ -1624,16 +1652,6 @@ class CommandController {
                  */
             }
 
-            // Джойстик
-            else if( 'joystick' === data.command && _this.drone.params.joystick_enable ){
-
-                let x = parseInt(data.params.x1) || 0;
-                let y = parseInt(data.params.y1) || 0;
-
-                this.drone.joystick.set(x, y);
-
-            }
-
         }
 
     }
@@ -1646,69 +1664,58 @@ class JoystickController {
     constructor(drone){
         this.drone = drone; // ссылка на экземпляр дрона
         this.last_pos_time = 0; // timestamp последних данных из браузера
-        this.pos_data = { jx: 0 ,jy: 0 ,jz: 0 ,jr: 0 };
-        this.scheme = {x: 'jr', y: 'jz'};
-        this.ap_type = 'none';
-
-        this.last_pos_data1 = {vx: null, yr: null};
-
-        this.setAPType();
+        this.pos_data = { jlx: 0 ,jly: 0 ,jrx: 0 ,jry: 0 };
+        this.last_sent_pos_data = { jlx: 0 ,jly: 0 ,jrx: 0 ,jry: 0 };
     }
 
-    setAPType(){
+    // Установка положения джойстика, вызывается в CommandController
+    set(jlx, jly, jrx, jry){
 
-        this.pos_data = { jx: 0 ,jy: 0 ,jz: 0 ,jr: 0 };
-
-        // Каналы управления в зависимости от типа автопилота
-        switch( this.drone.info.get('ac') ){
-            case 'rover':
-                /* PX4 */ if( 12 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jz' };this.ap_type = 'px_rover';}
-                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) {this.scheme = { x: 'jy', y: 'jz' };this.ap_type = 'ardu_rover';}
-                break;
-            case 'copter':
-                /* PX4 */ if( 12 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jx' };this.ap_type = 'px4_copter';}
-                /* Ardupilot */ else if( 3 === this.drone.data.autopilot ) {this.scheme = { x: 'jr', y: 'jx' }; this.ap_type = 'ardu_copter';}// jy
-                break;
-            default:
-                this.scheme = { x: 'jx', y: 'jy' };
-        }
-    }
-
-    // Установка положения джойстика, вызвается в CommandController
-    set(x, y){
         // обновить время последних данных
         this.last_pos_time = helpers.now();
 
-        // Выставить лимиты
-        if( x > 50 ) x = 50;
-        if( x < -50 ) x = -50;
-        if( y > 50 ) y = 50;
-        if( y < -50 ) y = -50;
+        const consider_limits = function(v){
+            if( v > 50 ) v = 50;
+            if( v < -50 ) v = -50;
+            return v;
+        };
 
-        // В сообщении отправляются значения от -1000 до +1000
-        this.pos_data[this.scheme['x']] = x*20; // *10 = половина, *20 = слишком резвый
-        this.pos_data[this.scheme['y']] = y*20;
+        // Выставить лимиты
+        this.pos_data.jlx = consider_limits(jlx);
+        this.pos_data.jly = consider_limits(jly);
+        this.pos_data.jrx = consider_limits(jrx);
+        this.pos_data.jry = consider_limits(jry);
 
     }
 
     // Вызывается в heartbeat если подключены дрон и gcs в браузере, а также джойстик включен в настройках
     send2drone(){
-        // Проверяем актуальность данных от джойстика
-        let data_is_valid = (helpers.now() - this.last_pos_time) < 3;
+
+        // Если данные старые, то ничего не отправляем
+        if( (helpers.now() - this.last_pos_time) > 3 ) return;
+
+        //console.log('j-1');
 
         //
-        // Реализация через MANUAL_CONTROL (69)
-
-        // Отправляем сообщение
         // Arducopter in guided mode
-        if( this.ap_type === 'ardu_copter' && this.drone.telem1.get('armed') && this.drone.telem1.get('mode') === 4 ){
+        if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot && this.drone.telem1.get('armed') && this.drone.telem1.get('mode') === 4 ){
 
-            let vx = data_is_valid ? Math.round(this.pos_data.jx/200) : 0;
-            let yr = data_is_valid ? this.pos_data.jr/500 : 0;
+            // Если в текущих и предыдущих данных 00, то тоже ничего не отправляем
+            if( 0 === this.last_sent_pos_data.jlx && 0 === this.last_sent_pos_data.jly && 0 === this.last_sent_pos_data.jrx && 0 === this.last_sent_pos_data.jry && 0 === this.pos_data.jlx && 0 === this.pos_data.jly && 0 === this.pos_data.jrx && 0 === this.pos_data.jry ) return;
 
-            if( vx === 0 && yr === 0 && this.last_pos_data1.vx === 0 && this.last_pos_data1.yr === 0 ) return;
+            // Сохранить для сравнения со следующими данными
+            this.last_sent_pos_data.jlx = this.pos_data.jlx;
+            this.last_sent_pos_data.jly = this.pos_data.jly;
+            this.last_sent_pos_data.jrx = this.pos_data.jrx;
+            this.last_sent_pos_data.jry = this.pos_data.jry;
 
-            // SET_POSITION_TARGET_LOCAL_NED
+            // Подготовить значения для отправки
+            let vx = this.pos_data.jry/10 || 0, // max 50/10 = 5 m/s
+                vy = this.pos_data.jrx/10 || 0, // max 50/10 = 5 m/s
+                vz = this.pos_data.jly/10*-1 || 0, // max 50/10 = 5 m/s // Z velocity in m/s (positive is down)
+                yr = this.pos_data.jlx/50 || 0; // 1 rad/sec
+
+            // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
             this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', {
                 time_boot_ms: helpers.now_ms()
                 ,target: this.drone.mavlink.sysid
@@ -1719,31 +1726,30 @@ class JoystickController {
                 ,y: null
                 ,z: null
                 ,vx: vx
-                ,vy: 0
-                ,vz: 0
+                ,vy: vy
+                ,vz: vz // Z velocity in m/s (positive is down)
                 ,afx: null
                 ,afy: null
                 ,afz: null
-                ,yaw: 0
+                ,yaw: null
                 ,yaw_rate: yr
             });
 
-            this.last_pos_data1 = {vx: vx, yr: yr};
-
         }
+
+        //
+        // Все остальные режимы и автопилоты
         else {
             this.drone.mavlink.sendMessage('MANUAL_CONTROL', {
                 target: this.drone.mavlink.sysid
                 ,target_component: this.drone.mavlink.compid
-                ,x: data_is_valid ? this.pos_data.jx : 0
-                ,y: data_is_valid ? this.pos_data.jy : 0
-                ,z: data_is_valid ? this.pos_data.jz : 0
-                ,r: data_is_valid ? this.pos_data.jr : 0
+                ,x: Math.round(this.pos_data.jry*20) || 0
+                ,y: Math.round(this.pos_data.jrx*20) || 0
+                ,z: Math.round(this.pos_data.jly*20) || 0
+                ,r: Math.round(this.pos_data.jlx*20) || 0
                 ,buttons: 0
             });
         }
-
-
 
     }
 
@@ -2011,4 +2017,3 @@ const DroneServerController = function(){
 
 
 module.exports = DroneServerController;
-

@@ -9,16 +9,20 @@ const server_config = require('../configs/server_config')
     ,_ = require('lodash')
     ,http = require('http')
     ,express = require('express')
+    ,fileUpload = require('express-fileupload')
     ,{redisClient, redisPub, redisSub, rHGetAll} = require('../utils/redis')
     ,RK = require('../defs/redis_keys')
     ,IK = require('../defs/io_keys')
     ,bodyParser = require('body-parser')
     ,Logger = require('../utils/logger')
+    ,helpers = require('../utils/helpers')
     ,io_redis_adapter = require('socket.io-redis')
     ,io_rpc = require('../utils/io_rpc')
     ,rpc_routes = require('../defs/rpc_routes')
     // DB Models
     ,DroneModel = require('../db_models/Drone')
+    ,FlightLogModel = require('./../db_models/FlightLog')
+    ,nodeUuid = require('node-uuid')
 ; /////////
 
 try {
@@ -35,7 +39,7 @@ try {
 
     // io RPC
     const RPC = new io_rpc();
-    _.mapKeys(rpc_routes, (value, key) => { RPC.setMethod(key, rpc_routes[key]) });
+    _.mapKeys(rpc_routes, (handler, method) => { RPC.setMethod(method, handler) });
 
 
     // static files init
@@ -45,6 +49,86 @@ try {
     // JSON parse init
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({extended: false}));
+    app.use(fileUpload());
+
+
+    // HTTP API calls
+    // Загрузка лога
+    app.post('/api/log_upload', function (request, response) {
+
+        const promise = new Promise((resolve, reject) => {
+            //console.log(request.files);
+
+            // The name of the input field (i.e. "sampleFile") is used to retrieve the uploaded file
+
+            let uploaded_file = request.files.upload;
+
+            // Придумать уникальное имя файла
+            let file_name = helpers.now_ms() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
+
+            // Скопировать файл
+            uploaded_file.mv('./../logs/' + file_name, function(err) {
+                if (err){
+                    console.log(err);
+                    reject('Failed to move log file');
+                }
+                else {
+
+                    // Завести запись в БД
+                    const new_log = new FlightLogModel({
+                        name: 'test ' + helpers.now_ms()
+                        ,bin_file: file_name
+                    });
+
+                    try {
+                        // Validate data
+                        new_log.validate();
+
+                        // Save new drone
+                        new_log.save()
+                            .then(function(doc) {
+                                Logger.info('new log saved ' + doc.id);
+
+                                // Response with success
+                                resolve({ status: 'success' });
+                            })
+                            .catch( e => {
+                                Logger.error(e);
+                                reject('Saving error');
+                            });
+
+                    }
+                    catch(e){
+                        // Response with error
+                        if( 'ValidationError' === e.name ){
+                            Logger.warn('Log create validation failed');
+                            Logger.warn(e);
+                            reject('Log create validation failed');
+                        }
+                        else {
+                            Logger.error('Database error drone create');
+                            Logger.error(e);
+                            reject('Database error');
+                        }
+                    }
+
+                }
+
+            });
+
+        });
+
+
+        // Возвращаем результат
+        promise
+            .then( result => response.json(result) )
+            .catch( error => {
+                Logger.error(error);
+                response.json({ status: 'failed' });
+            });
+
+    });
+
 
 
     //
@@ -76,6 +160,7 @@ try {
         //              response({status:'failed', message:'Failed'})
         //              response({status:'success', data: {}})
         io_client.on('__apirpc', function(req, response_callback){
+
             if( req && _.has(req, 'method') && _.has(req, 'data') && _.isString(req.method) ){
                 RPC.execute(req.method, req.data)
                     .then( resp_data => {
@@ -146,6 +231,41 @@ try {
                     Logger.error(err);
                 });
         });
+
+        //
+        // Трансляция изменений БД
+        // Смотрим изменения в БД с дронами и управляем серверами
+        FlightLogModel.look()
+            .then(function(cursor){
+                cursor.each(function(err, data){
+
+                    // Добавился новый лог
+                    if( !data.old_val && data.new_val ){
+                        io_client.emit('logs_look', {
+                            e: 'new'
+                            ,data: data.new_val
+                        });
+                    }
+
+                    // Удалился лог
+                    else if( data.old_val && !data.new_val ){
+                        io_client.emit('logs_look', {
+                            e: 'del'
+                            ,data: data.old_val
+                        });
+                    }
+
+                    // Изменение данных
+                    else if( data.old_val && data.new_val ){
+                        io_client.emit('logs_look', {
+                            e: 'upd'
+                            ,data: data.new_val
+                        });
+                    }
+
+                });
+            })
+            .catch(Logger.error);
 
 
     });
