@@ -149,7 +149,7 @@ class DFMessage(object):
         self._fieldnames = fmt.columns
 
     def to_dict(self):
-        d = {'mavpackettype': self.fmt.name}
+        d = {'mavpackettype': self.fmt.name, '_cts': self._timestamp}
 
         for field in self._fieldnames:
             d[field] = self.__getattr__(field)
@@ -825,9 +825,9 @@ class DFReader_binary(DFReader):
                     if self.remaining >= 528:
                         # APM logs often contain garbage at end
                         skip_bytes = self.offset - skip_start
-                        print("Skipped %u bad bytes in log at offset %u, type=%s (prev=%s)" %
-                              (skip_bytes, skip_start, skip_type, self.prev_type),
-                          file=sys.stderr)
+                        #print("Skipped %u bad bytes in log at offset %u, type=%s (prev=%s)" %
+                        #      (skip_bytes, skip_start, skip_type, self.prev_type),
+                        #  file=sys.stderr)
                     skip_type = None
                 # check we recognise this message type:
                 msg_type = u_ord(hdr[2])
@@ -1098,6 +1098,8 @@ if __name__ == "__main__":
         log = DFReader_text(filename)
     else:
         log = DFReader_binary(filename)
+
+    print( json.dumps(log.flightmode_list()), "#$#" )
 
     while True:
         m = log.recv_msg()

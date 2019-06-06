@@ -3,13 +3,14 @@
 /*
 
     Вспомогательные функции
+    !!! Испоьзуются и на клиенте и на сервере !!!
 
  */
 const helpers = {
 
     /*  utils/timeformat2  */
     // Секунды в строку ЧЧ:ММ:СС
-    timeFormat1: function(seconds){
+    readable_seconds: function(seconds){
         let h = Math.floor( seconds/3600 );
         let m = '0' + Math.floor( (seconds - h*3600)/60 );
         let s = '0' + (seconds - h*3600 - m*60);

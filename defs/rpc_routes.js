@@ -1,8 +1,10 @@
 const common_config = require('../configs/common_config')
      ,{RPC} = require('../utils/redis')
      ,RK = require('../defs/redis_keys')
+     ,{LOG_ERRORS, LOG_EVENTS} = require('../defs/mavlink')
      ,_ = require('lodash')
      ,Logger = require('./../utils/logger')
+     ,helpers = require('./../utils/helpers')
      ,validators = require('./form_validators') // Form fields validators
      ,DroneModel = require('./../db_models/Drone') // Drone model
      ,FlightPlanModel = require('./../db_models/FlightPlan') // Полетные задания пилотов
@@ -10,6 +12,19 @@ const common_config = require('../configs/common_config')
      ,FlightLogModel = require('./../db_models/FlightLog');
 
 
+const log_err_msg = function(subsys, ecode){
+    // subsys == 10
+    let msg = '';
+    if( 10 === subsys ) msg = 'Mode set failed ' + ecode;
+    else if( _.has(LOG_ERRORS, '' + subsys + ecode) ) msg = LOG_ERRORS['' + subsys + ecode];
+    else msg = 'Unknown error ' + subsys + '.' + ecode;
+    return msg;
+};
+
+const log_event_msg = function(ev_id){
+    if( _.has(LOG_EVENTS, ev_id) ) return LOG_EVENTS[ev_id];
+    else return 'Unknown event #' + ev_id;
+};
 
 
 const RPC_routes = {
@@ -730,19 +745,32 @@ const RPC_routes = {
     },
 
     //
-    // TODO Загрузка данных одного лога {id: log_ID}
+    // Загрузка данных одного лога {id: log_ID}
     logGet: function(data, resolve, reject){
         if( !_.has(data, 'id') ){
             reject('no id');
             return;
         }
 
+        let start_time_check = helpers.now_ms();
+        let check_point_time = 0;
+        console.log('start');
+
         FlightLogModel.get(data.id.trim()).run()
             .then(function(log) {
 
-                let fields = {};
+                check_point_time = helpers.now_ms();
+                console.log('Read from DB: ' + (check_point_time-start_time_check));
 
                 try {
+
+                    const fs = require('fs');
+                    fs.readFile('./../logs/' + log.bin_file, (err, data) => {
+                        if (err) throw err;
+                        console.log(data.slice(0,10));
+                        console.log(data.slice(6,10));
+                        console.log(data.slice(6,10).toString());
+                    });
 
                     const spawn = require("child_process").spawn;
 
@@ -753,12 +781,18 @@ const RPC_routes = {
 
                     let parsed_strings = '';
 
+                    console.log('Py process started: ' + (helpers.now_ms()-check_point_time));
+                    check_point_time = helpers.now_ms();
+
                     // Takes stdout data from script which executed
                     // with arguments and send this data to res object
                     pyprocess.stdout.on('data', function(data) {
                         parsed_strings = parsed_strings + data;
                     } );
                     pyprocess.stdout.on('close', function() {
+
+                        console.log('Py process sent all data: ' + (helpers.now_ms()-check_point_time));
+                        check_point_time = helpers.now_ms();
 
                         let sf = parsed_strings.split("#$#");
 
@@ -787,12 +821,20 @@ const RPC_routes = {
                                         if( !start_time ) start_time = timeus;
                                         if( timeus > finish_time ) finish_time = timeus;
                                     }
+
+                                    // GPS time
+                                    //if( _.has(m, '_cts') ){
+                                    //    console.log('CTS', m['_cts']);
+                                    //}
+                                }
+                                else {
+                                    console.log('NO TYPE', m);
                                 }
 
                             }
                             catch (err ){
-                                console.log('ERR', ind);
-                                console.log(ls);
+                                //console.log('ERR', ind);
+                                //console.log(ls);
                             }
                         });
 
@@ -800,48 +842,229 @@ const RPC_routes = {
 
                         /* Распечатать список групп и полей
                         _.mapKeys(m_list, (value, key) => {
-                            //console.log(key, value.length);
-                            console.log(key);
-                            _.mapKeys(value[0], function(v,k){
-                                if( 'TimeUS' !== k && 'mavpackettype' !== k ) console.log('    ' + k);
-                            });
+                            console.log(key, value.length);
+                            //console.log(key);
+                            //_.mapKeys(value[0], function(v,k){
+                            //    if( 'TimeUS' !== k && 'mavpackettype' !== k ) console.log('    ' + k);
+                            //});
                         });
-                         */
+                         //*/
 
-                        console.log('Log time, sec: ', log_time);
-                        console.log('Cache size KB', Math.round(parsed_strings.length/1024));
+                        //console.log('Log time, sec: ', log_time);
+                        //console.log('Cache size KB', Math.round(parsed_strings.length/1024));
 
-                        // Выбрать данные по высоте
-                        // POS.RelHomeAlt
-                        let group = 'POS';
-                        let field = 'RelHomeAlt';
+                        console.log('Data parsed in: ' + (helpers.now_ms()-check_point_time));
+                        check_point_time = helpers.now_ms();
+
                         let freq = 5;
+                        let slots_5hz = Math.round((finish_time-start_time)/(1000000/5));
 
-                        let chart_data = [];
 
-                        if( _.has(m_list, group) ){
-                            let min_alt = 0;
-                            let max_alt = 0;
-                            let prev_rec_time = -1;
+                        // Lat, Lng
+                        let pos_data = {
+                             gps: []
+                            ,pos: []
+                        };
 
-                            _.each(m_list[group], (rec) => {
-                                let alt = parseFloat(rec[field]).toFixed(2);
-                                if( alt < min_alt ) min_alt = alt;
-                                if( alt > max_alt ) max_alt = alt;
+                        //
+                        // GPS
+                        if( _.has(m_list, 'GPS') ){
+                            let prev_rec_point_5hz = -1;
+                            let prev_rec_point_1hz = -1;
+                            let init_alt = null;
 
-                                let rec_time = Math.round((parseInt(rec['TimeUS'])-start_time)/(1000000/freq));
+                            _.each(m_list['GPS'], (rec) => {
+                                let rec_point_1hz = Math.round((parseInt(rec['TimeUS'])-start_time)/1000000);
+                                let rec_point_5hz = Math.round((parseInt(rec['TimeUS'])-start_time)/(1000000/5));
 
-                                if( rec_time > prev_rec_time ){
-                                    chart_data.push({time: rec_time, alt: alt});
-                                    prev_rec_time = rec_time;
+                                let  alt = parseFloat(rec['Alt']).toFixed(2);
+                                if( null === init_alt ) init_alt = alt;
+                                let rel_alt = (alt - init_alt).toFixed(2);
+
+                                // 1 Hz
+                                // Точно следующая точка
+                                if( rec_point_1hz-prev_rec_point_1hz === 1 ){
+                                    pos_data.gps.push({lat: parseFloat(rec['Lat']), lng: parseFloat(rec['Lng'])});
+                                }
+                                // Пропуск точки, заполняем текущими данными
+                                else if( rec_point_1hz > prev_rec_point_1hz ){
+                                    for( let i = 1, k = rec_point_1hz-prev_rec_point_1hz; i <= k; i++ ){
+                                        pos_data.gps.push({lat: parseFloat(rec['Lat']), lng: parseFloat(rec['Lng'])});
+                                    }
                                 }
 
+                                prev_rec_point_5hz = rec_point_5hz;
+                                prev_rec_point_1hz = rec_point_1hz;
                             });
-
-                            console.log('CL', chart_data.length, min_alt, max_alt);
                         }
 
-                        resolve({ info: 'info', alt_chart: chart_data });
+                        //
+                        // POS
+                        if( _.has(m_list, 'POS') ){
+                            let prev_rec_point_5hz = -1;
+                            let prev_rec_point_1hz = -1;
+
+                            _.each(m_list['POS'], (rec) => {
+                                let rec_point_1hz = Math.round((parseInt(rec['TimeUS'])-start_time)/1000000);
+                                let rec_point_5hz = Math.round((parseInt(rec['TimeUS'])-start_time)/(1000000/5));
+
+                                let  alt = parseFloat(rec['RelHomeAlt']).toFixed(2);
+
+                                // 1 Hz
+                                // Точно следующая точка
+                                if( rec_point_1hz-prev_rec_point_1hz === 1 ){
+                                    pos_data.pos.push({lat: parseFloat(rec['Lat']), lng: parseFloat(rec['Lng'])});
+                                }
+                                // Пропуск точки, заполняем текущими данными
+                                else if( rec_point_1hz > prev_rec_point_1hz ){
+                                    for( let i = 1, k = rec_point_1hz-prev_rec_point_1hz; i <= k; i++ ){
+                                        pos_data.pos.push({lat: parseFloat(rec['Lat']), lng: parseFloat(rec['Lng'])});
+                                    }
+                                }
+
+                                prev_rec_point_5hz = rec_point_5hz;
+                                prev_rec_point_1hz = rec_point_1hz;
+                            });
+                        }
+
+                        //
+                        //  Log data
+                        let log_data = {};
+                        let max_freq = 20;
+
+                        //
+                        // ERR errors
+                        let err_data = []; // [{t: time, msg: err_msg}]
+                        if( _.has(m_list, 'ERR') ){
+                            _.each(m_list['ERR'], (rec) => {
+
+                                let err_time = Math.round((parseInt(rec['TimeUS'])-start_time)/10000);
+                                err_data.push({t: err_time, msg: log_err_msg(parseInt(rec['Subsys']), parseInt(rec['ECode']))});
+
+                            });
+                        }
+                        log_data['ERR'] = err_data;
+
+                        //
+                        // EV events
+                        let events_data = []; // {t: time, ev: event}
+                        if( _.has(m_list, 'EV') ){
+                            _.each(m_list['EV'], (rec) => {
+
+                                let time = Math.round((parseInt(rec['TimeUS'])-start_time)/1000000);
+                                events_data.push({t: time, ev: log_event_msg(parseInt(rec['Id']))});
+
+                            });
+                        }
+                        log_data['EV'] = events_data;
+
+                        //
+                        // MSG
+                        let msgs_data = []; // {t: time, msg: msg}
+                        if( _.has(m_list, 'MSG') ){
+                            _.each(m_list['MSG'], (rec) => {
+
+                                let time = Math.round((parseInt(rec['TimeUS'])-start_time)/1000000);
+                                msgs_data.push({t: time, msg: rec['Message']});
+
+                            });
+                        }
+                        log_data['MSG'] = msgs_data;
+
+                        //
+                        // MODE
+                        if( _.has(m_list, 'MODE') ){
+                            //console.log(m_list.MODE);
+                        }
+
+                        // Что это за тип?
+                        // FMT описание полей
+                        // UNIT описание единиц измерения
+                        // MULT коэффициенты
+                        // FMTU
+                        //console.log(m_list.PARM);
+                        //console.log(m_list.PARM.length);
+                        //_.each(m_list.PARM, parm => {
+                        //    console.log(parm.Name + ': ' + parm.Value);
+                        //});
+
+                        const parse_group =function(group, options={}){ // {ints:[],text:[],float_prec:3}
+                            let data = {};
+                            let parse_int_fields = [];
+                            //let parse_text_fields = [];
+                            let float_prec = 3;
+                            if( _.has(options, 'ints') && options.ints.length ) parse_int_fields = options.ints;
+                            //if( _.has(options, 'text') && options.text.length ) parse_text_fields = options.text;
+                            if( _.has(options, 'float_prec') ) float_prec = options.float_prec;
+
+                            if( _.has(m_list, group) ){
+                                let prev_point_time = -1;
+
+                                _.each(m_list[group], (rec) => {
+                                    // время записи
+                                    let current_point_time = parseInt(rec['TimeUS'])-start_time;
+                                    // ограничение частоты точек
+                                    if( current_point_time-prev_point_time < 1000000/max_freq ) return;
+
+                                    //let point_time = (current_time/1000000).toPrecision(2);
+                                    let point_time = Math.round(current_point_time/10000); // round to 0.01 sec
+
+                                    _.mapKeys(rec, (value, field) => {
+                                        if( 'TimeUS' !== field && 'mavpackettype' !== field ){
+                                            if( !_.has(data, field) ) data[field] = [];
+                                            // Ints
+                                            if( parse_int_fields.length && _.includes(parse_int_fields, field) ){
+                                                data[field].push([point_time, parseInt(value)]);
+                                            }
+                                            // Floats
+                                            else {
+                                                data[field].push([point_time, parseFloat(parseFloat(value).toPrecision(float_prec))]);
+                                            }
+                                        }
+                                    });
+
+                                    prev_point_time = current_point_time;
+
+                                });
+                            }
+
+                            return data;
+
+                        };
+
+                        // ATT
+                        log_data['ATT'] = parse_group('ATT');
+
+                        // VIBE
+                        log_data['VIBE'] = parse_group('VIBE', {ints:['Clip0', 'Clip1', 'Clip2']});
+
+                        // CTUN
+                        log_data['CTUN'] = parse_group('CTUN');
+
+                        // PL
+                        log_data['PL'] = parse_group('PL', {ints:['Heal', 'TAcq']});
+
+                        // OF Optical Flow
+                        log_data['OF'] = parse_group('OF');
+
+
+
+                        console.log('Data filtered in: ' + (helpers.now_ms()-check_point_time));
+                        check_point_time = helpers.now_ms();
+
+                        //
+                        // Отправка данных в браузер
+                        resolve({
+                            info: 'info'
+                            ,pos_gps: pos_data.gps
+                            ,pos_pos: pos_data.pos
+
+                            ,errors: err_data
+                            ,messages: msgs_data
+                            ,events: events_data
+
+                            ,log_data: log_data
+                        });
 
                     } );
                     pyprocess.stdout.on('end', function() {

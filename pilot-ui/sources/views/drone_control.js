@@ -140,11 +140,11 @@ const info_popup = {
                     else {
                         templ += 'Status: <b>' + (parseInt(data.online) === 1 ? `online (${data.sys_status})`  : 'offline'  ) + '</b><br/>';
                         if( parseInt(data.online) === 1 ) {
-                            templ += 'Uptime: ' + helpers.timeFormat1(data.uptime) + '<br/>';
+                            templ += 'Uptime: ' + helpers.readable_seconds(data.uptime) + '<br/>';
                             templ += '';
                         }
                         else {
-                            templ += 'Downtime: ' + helpers.timeFormat1(data.downtime) + '<br/>';
+                            templ += 'Downtime: ' + helpers.readable_seconds(data.downtime) + '<br/>';
                             if( parseFloat(data.last_pos_lat) && parseFloat(data.last_pos_lon) ){
                                 templ += 'Last postion: ' + data.last_pos_lat + ', ' + data.last_pos_lon + '<br/>';
                             }

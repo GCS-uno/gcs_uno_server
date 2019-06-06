@@ -223,3 +223,16 @@
 }
 
 
+.c3-region-0 {
+    fill: red;
+}
+.c3-region.red {
+    fill: #ff1500;
+}
+.c3-region.green {
+    fill: #25cc00;
+}
+.c3-region.yellow {
+    fill: #fdff0c;
+}
+

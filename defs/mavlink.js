@@ -23,26 +23,28 @@ const FLIGHT_MODES = {
             ,21: {name: 'QRTL', base: 1, custom: 21}
         }
         ,copter: {
-            0: {name: 'STABILIZE', base: 1, custom: 0}
-            ,1: {name: 'ACRO', base: 1, custom: 1}
-            ,2: {name: 'ALT HOLD', base: 1, custom: 2}
-            ,3: {name: 'AUTO', base: 89, custom: 3}
-            ,4: {name: 'GUIDED', base: 81, custom: 4}
-            ,5: {name: 'LOITER', base: 89, custom: 5}
+             0: {name: 'Stabilize', base: 1, custom: 0}
+            ,1: {name: 'Acro', base: 1, custom: 1}
+            ,2: {name: 'Alt Hold', base: 1, custom: 2}
+            ,3: {name: 'Auto', base: 89, custom: 3}
+            ,4: {name: 'Guided', base: 81, custom: 4}
+            ,5: {name: 'Loiter', base: 89, custom: 5}
             ,6: {name: 'RTL', base: 1, custom: 6}
-            ,7: {name: 'CIRCLE', base: 1, custom: 7}
-            ,9: {name: 'LAND', base: 217, custom: 9}
-            ,11: {name: 'DRIFT', base: 1, custom: 11}
-            ,13: {name: 'SPORT', base: 1, custom: 13}
-            ,14: {name: 'FLIP', base: 1, custom: 14}
-            ,15: {name: 'AUTOTUNE', base: 1, custom: 15}
-            ,16: {name: 'POSHOLD', base: 1, custom: 16}
-            ,17: {name: 'BRAKE', base: 1, custom: 17}
-            ,18: {name: 'THROW', base: 1, custom: 18}
-            ,19: {name: 'AVOID ADSB', base: 1, custom: 19}
-            ,20: {name: 'GUIDED NOGPS', base: 1, custom: 20}
-            ,21: {name: 'SMART RTL', base: 1, custom: 21}
+            ,7: {name: 'Circle', base: 1, custom: 7}
+            ,9: {name: 'Land', base: 217, custom: 9}
+            ,11: {name: 'Drift', base: 1, custom: 11}
+            ,13: {name: 'Sport', base: 1, custom: 13}
+            ,14: {name: 'Flip', base: 1, custom: 14}
+            ,15: {name: 'Autotune', base: 1, custom: 15}
+            ,16: {name: 'Position Hold', base: 1, custom: 16}
+            ,17: {name: 'Brake', base: 1, custom: 17}
+            ,18: {name: 'Throw', base: 1, custom: 18}
+            ,19: {name: 'Avoid ADSB', base: 1, custom: 19}
+            ,20: {name: 'Guided No GPS', base: 1, custom: 20}
+            ,21: {name: 'Smart RTL', base: 1, custom: 21}
             ,22: {name: 'Flow Hold', base: 89, custom: 22}
+            ,23: {name: 'Follow Target', base: 89, custom: 23}
+            ,24: {name: 'Zigzag', base: 89, custom: 24}
         }
         ,rover: {
              0: {name: 'MANUAL', base: 1, custom: 0}
@@ -177,9 +179,119 @@ const MAV_STATE = [
     ,'terminating'
 ];
 
+const LOG_ERRORS = {
+     '20': 'Radio errors resolved'
+    ,'22': 'Radio received no updates from receiver for 2 seconds'
+    ,'30': 'Compass errors resolved'
+    ,'31': 'Compass failed to initialise'
+    ,'34': 'Compass unhealthy, failed to read from sensor'
+    ,'50': 'Radio failsafe resolved'
+    ,'51': 'Radio failsafe triggered'
+    ,'60': 'Battery failsafe resolved'
+    ,'61': 'Battery failsafe triggered'
+    ,'80': 'GCS failsafe resolved'
+    ,'81': 'GCS failsafe triggered'
+    ,'90': 'Fence failsafe resolved'
+    ,'91': 'Altitude fence breach, failsafe triggered'
+    ,'92': 'Circular fence breach, failsafe triggered'
+    ,'93': 'Both Alt and Circular fence breached, failsafe triggered'
+    ,'94': 'Polygon fence breached, failsafe triggered'
+    ,'110': 'GPS glitch cleared'
+    ,'112': 'GPS glitch detected'
+    ,'121': 'Crash into ground detected'
+    ,'122': 'Loss of control detected'
+    ,'132': 'Flip abandoned'
+    ,'152': 'Parachute not deployed, vehicle too low'
+    ,'153': 'Parachute not deployed, vehicle landed'
+    ,'160': 'EKF variance cleared'
+    ,'162': 'EKF position estimate bad'
+    ,'170': 'EKF failsafe resolved'
+    ,'171': 'EKF failsafe triggered'
+    ,'180': 'Barometer errors resolved'
+    ,'184': 'Barometer unhealthy'
+    ,'190': 'CPU load failsafe resolved'
+    ,'191': 'CPU load failsafe triggered'
+    ,'200': 'ADSB Failsafe: Failsafe Resolved'
+    ,'201': 'ADSB Failsafe: No action just report to Pilot'
+    ,'202': 'ADSB Failsafe: Vehicle avoids by climbing or descending'
+    ,'203': 'ADSB Failsafe: Vehicle avoids by moving horizontally'
+    ,'204': 'ADSB Failsafe: Vehicle avoids by moving perpendicular to other vehicle'
+    ,'205': 'ADSB Failsafe: RTL invoked'
+    ,'212': 'Missing terrain data'
+    ,'222': 'Navigation: Failed to set destination'
+    ,'223': 'Navigation: RTL restarted'
+    ,'224': 'Navigation: Circle initialisation failed'
+    ,'225': 'Navigation: Destination outside fence'
+    ,'230': 'Terrain failsafe resolved'
+    ,'231': 'Terrain failsafe triggered'
+    ,'240': '1st EKF has become primary'
+    ,'241': '2nd EKF has become primary'
+    ,'250': 'Thrust Restored'
+    ,'251': 'Thrust Loss Detected '
+};
+
+const LOG_EVENTS = {
+    7: 'Ap State'
+    ,9: 'Init Simple Bearing'
+    ,10: 'Armed'
+    ,11: 'Disarmed'
+    ,15: 'Auto Armed'
+    ,17: 'Land Complete Maybe'
+    ,18: 'Land Complete'
+    ,28: 'Takeoff complete'
+    ,19: 'Lost Gps'
+    ,21: 'Flip Start'
+    ,22: 'Flip End'
+    ,25: 'Set Home'
+    ,26: 'Set Simple On'
+    ,27: 'Set Simple Off'
+    ,29: 'Set Supersimple On'
+    ,30: 'Autotune Initialised'
+    ,31: 'Autotune Off'
+    ,32: 'Autotune Restart'
+    ,33: 'Autotune Success'
+    ,34: 'Autotune Failed'
+    ,35: 'Autotune Reached Limit'
+    ,36: 'Autotune Pilot Testing'
+    ,37: 'Autotune Savedgains'
+    ,38: 'Save Trim'
+    ,39: 'Savewp Add Wp'
+    ,41: 'Fence Enable'
+    ,42: 'Fence Disable'
+    ,43: 'Acro Trainer Disabled'
+    ,44: 'Acro Trainer Leveling'
+    ,45: 'Acro Trainer Limited'
+    ,46: 'Gripper Grab'
+    ,47: 'Gripper Release'
+    ,49: 'Parachute Disabled'
+    ,50: 'Parachute Enabled'
+    ,51: 'Parachute Released'
+    ,52: 'Landing Gear Deployed'
+    ,53: 'Landing Gear Retracted'
+    ,54: 'Motors Emergency Stopped'
+    ,55: 'Motors Emergency Stop Cleared'
+    ,56: 'Motors Interlock Disabled'
+    ,57: 'Motors Interlock Enabled'
+    ,58: 'Rotor Runup Complete'
+    ,59: 'Rotor Speed Below Critical'
+    ,60: 'Ekf Alt Reset'
+    ,61: 'Land Cancelled By Pilot'
+    ,62: 'Ekf Yaw Reset'
+    ,63: 'Avoidance Adsb Enable'
+    ,64: 'Avoidance Adsb Disable'
+    ,65: 'Avoidance Proximity Enable'
+    ,66: 'Avoidance Proximity Disable'
+    ,67: 'Gps Primary Changed'
+    ,68: 'Winch Relaxed'
+    ,69: 'Winch Length Control'
+    ,70: 'Winch Rate Control'
+};
+
 module.exports = {
     FLIGHT_MODES,
     AUTOPILOTS,
     FRAME_TYPES,
-    MAV_STATE
+    MAV_STATE,
+    LOG_ERRORS,
+    LOG_EVENTS
 };
