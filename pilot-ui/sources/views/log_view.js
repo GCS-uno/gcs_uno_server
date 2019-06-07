@@ -292,7 +292,7 @@ export default class LogView extends JetView {
                 ,zoomType: 'x'
             },
             title: {
-                text: 'Altitudes'
+                text: 'Altitude'
             },
             boost: {
                 enabled: true
@@ -343,7 +343,7 @@ export default class LogView extends JetView {
                 ,zoomType: 'x'
             },
             title: {
-                text: 'Climb rate'
+                text: 'Climb Rate'
             },
             boost: {
                 enabled: true
@@ -507,8 +507,6 @@ export default class LogView extends JetView {
             }
             ,series: []
         });
-
-
 
 
         LogsCollection.Get(log_id)

@@ -149,10 +149,13 @@ class DFMessage(object):
         self._fieldnames = fmt.columns
 
     def to_dict(self):
-        d = {'mavpackettype': self.fmt.name, '_cts': self._timestamp}
+        d = {'mavpackettype': self.fmt.name} # , '_cts': self._timestamp
 
         for field in self._fieldnames:
-            d[field] = self.__getattr__(field)
+            fv = self.__getattr__(field)
+            if type(fv) == float and math.isnan(fv):
+                fv = ""
+            d[field] = fv
 
         return d
 
@@ -1099,16 +1102,19 @@ if __name__ == "__main__":
     else:
         log = DFReader_binary(filename)
 
-    print( json.dumps(log.flightmode_list()), "#$#" )
+    records = []
 
     while True:
         m = log.recv_msg()
         if m is None:
             break
         else:
-            type = m.get_type()
             fields = m.to_dict()
-            print( json.dumps(fields), "#$#" )
+            records.append(fields)
+
+    with open(filename + '.json', 'w') as outfile:
+        json.dump(records, outfile)
+
+    print('OK')
 
     exit(0)
-

@@ -41,16 +41,13 @@ try {
     const RPC = new io_rpc();
     _.mapKeys(rpc_routes, (handler, method) => { RPC.setMethod(method, handler) });
 
-
     // static files init
     app.use(express.static(__dirname + './../pilot-ui'));
-
 
     // JSON parse init
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({extended: false}));
     app.use(fileUpload());
-
 
     // HTTP API calls
     // Загрузка лога
@@ -74,43 +71,66 @@ try {
                 }
                 else {
 
-                    // Завести запись в БД
-                    const new_log = new FlightLogModel({
-                        name: 'test ' + helpers.now_ms()
-                        ,bin_file: file_name
-                    });
+                    // Распарсить файл
+                    const spawn = require("child_process").spawn;
 
-                    try {
-                        // Validate data
-                        new_log.validate();
+                    const pyprocess = spawn('python',["./../utils/pymavlink/DFReader.py", './../logs/' + file_name] );
 
-                        // Save new drone
-                        new_log.save()
-                            .then(function(doc) {
-                                Logger.info('new log saved ' + doc.id);
+                    let parse_response = '';
+                    pyprocess.stdout.on('error', function() {
+                        console.log('ERROR');
+                        reject('Bin parse error');
+                    } );
+                    pyprocess.stdout.on('data', function(data) {
+                        parse_response = parse_response + data;
+                    } );
+                    pyprocess.stdout.on('close', function() {
+                        console.log(parse_response);
 
-                                // Response with success
-                                resolve({ status: 'success' });
-                            })
-                            .catch( e => {
+                        if( !parse_response.includes('OK') ){
+                            reject('Failed');
+                            return;
+                        }
+
+                        // Завести запись в БД
+                        const new_log = new FlightLogModel({
+                            name: 'test ' + helpers.now_ms()
+                            ,bin_file: file_name
+                        });
+
+                        try {
+                            // Validate data
+                            new_log.validate();
+
+                            // Save new log
+                            new_log.save()
+                                .then(function(doc) {
+                                    Logger.info('new log saved ' + doc.id);
+
+                                    // Response with success
+                                    resolve({ status: 'success' });
+                                })
+                                .catch( e => {
+                                    Logger.error(e);
+                                    reject('Saving error');
+                                });
+
+                        }
+                        catch(e){
+                            // Response with error
+                            if( 'ValidationError' === e.name ){
+                                Logger.warn('Log create validation failed');
+                                Logger.warn(e);
+                                reject('Log create validation failed');
+                            }
+                            else {
+                                Logger.error('Database error drone create');
                                 Logger.error(e);
-                                reject('Saving error');
-                            });
+                                reject('Database error');
+                            }
+                        }
 
-                    }
-                    catch(e){
-                        // Response with error
-                        if( 'ValidationError' === e.name ){
-                            Logger.warn('Log create validation failed');
-                            Logger.warn(e);
-                            reject('Log create validation failed');
-                        }
-                        else {
-                            Logger.error('Database error drone create');
-                            Logger.error(e);
-                            reject('Database error');
-                        }
-                    }
+                    });
 
                 }
 
@@ -128,8 +148,6 @@ try {
             });
 
     });
-
-
 
     //
     // Запуск web-сервера

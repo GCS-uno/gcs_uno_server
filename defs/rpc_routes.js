@@ -765,49 +765,24 @@ const RPC_routes = {
 
                 try {
 
-                    fs.readFile('./../logs/' + log.bin_file, (err, data) => {
-                        if (err) throw err;
-                        console.log(data.slice(0,10));
-                        console.log(data.slice(6,10));
-                        console.log(data.slice(6,10).toString());
-                    });
+                    fs.readFile('./../logs/' + log.bin_file + '.json', (err, data) => {
+                        if (err){
+                            reject('Failed to read file');
+                            return;
+                        }
 
-                    const spawn = require("child_process").spawn;
-
-                    const pyprocess = spawn('python',["./../utils/pymavlink/DFReader.py",
-                        './../logs/' + log.bin_file] );
-
-                    let i = 0;
-
-                    let parsed_strings = '';
-
-                    console.log('Py process started: ' + (helpers.now_ms()-check_point_time));
-                    check_point_time = helpers.now_ms();
-
-                    // Takes stdout data from script which executed
-                    // with arguments and send this data to res object
-                    pyprocess.stdout.on('data', function(data) {
-                        parsed_strings = parsed_strings + data;
-                    } );
-                    pyprocess.stdout.on('close', function() {
-
-                        console.log('Py process sent all data: ' + (helpers.now_ms()-check_point_time));
+                        console.log('Read file: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
 
-                        let sf = parsed_strings.split("#$#");
+                        let sf = JSON.parse(data);
 
                         let m_list = {};
                         let start_time = null;
                         let finish_time = 0;
 
                         // Раскидать сообщения по группам
-                        _.each(sf, function(line, ind){
-
-                            let ls = line.replace('NaN', '""');
-
+                        _.each(sf, function(m, ind){
                             try {
-                                let m = JSON.parse(ls);
-
                                 if( _.has(m, 'mavpackettype') ){
                                     if( _.has(m_list, m['mavpackettype']) ){
                                         m_list[m['mavpackettype']].push(m);
@@ -821,11 +796,6 @@ const RPC_routes = {
                                         if( !start_time ) start_time = timeus;
                                         if( timeus > finish_time ) finish_time = timeus;
                                     }
-
-                                    // GPS time
-                                    //if( _.has(m, '_cts') ){
-                                    //    console.log('CTS', m['_cts']);
-                                    //}
                                 }
                                 else {
                                     console.log('NO TYPE', m);
@@ -833,7 +803,7 @@ const RPC_routes = {
 
                             }
                             catch (err ){
-                                //console.log('ERR', ind);
+                                console.log('ERR', ind, err);
                                 //console.log(ls);
                             }
                         });
@@ -856,13 +826,9 @@ const RPC_routes = {
                         console.log('Data parsed in: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
 
-                        let freq = 5;
-                        let slots_5hz = Math.round((finish_time-start_time)/(1000000/5));
-
-
                         // Lat, Lng
                         let pos_data = {
-                             gps: []
+                            gps: []
                             ,pos: []
                         };
 
@@ -977,16 +943,6 @@ const RPC_routes = {
                             //console.log(m_list.MODE);
                         }
 
-                        // Что это за тип?
-                        // FMT описание полей
-                        // UNIT описание единиц измерения
-                        // MULT коэффициенты
-                        // FMTU
-                        //console.log(m_list.PARM);
-                        //console.log(m_list.PARM.length);
-                        //_.each(m_list.PARM, parm => {
-                        //    console.log(parm.Name + ': ' + parm.Value);
-                        //});
 
                         const parse_group =function(group, options={}){ // {ints:[],text:[],float_prec:3}
                             let data = {};
@@ -1066,15 +1022,7 @@ const RPC_routes = {
                             ,log_data: log_data
                         });
 
-                    } );
-                    pyprocess.stdout.on('end', function() {
-                        //console.log('END');
-                    } );
-                    pyprocess.stdout.on('error', function() {
-                        console.log('ERROR');
-                        reject('Bin parse error');
-                    } );
-
+                    });
 
                 }
                 catch( err ){
@@ -1107,7 +1055,12 @@ const RPC_routes = {
                         fs.unlink('./../logs/' + log_file, (err) => {
                             if( err )Logger.error('Failed to delete file ' + log_file, err);
 
-                            console.log('file log removed');
+                            console.log('BIN file log removed');
+                        });
+                        fs.unlink('./../logs/' + log_file + '.json', (err) => {
+                            if( err )Logger.error('Failed to delete file ' + log_file + '.json', err);
+
+                            console.log('JSON file log removed');
                         });
 
                         console.log('DB log removed');
@@ -1123,7 +1076,6 @@ const RPC_routes = {
                 reject("Log not found");
             });
     }
-
 
 };
 
