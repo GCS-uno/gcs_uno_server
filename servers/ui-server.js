@@ -241,6 +241,7 @@ try {
 
                     // Добавился новый лог
                     if( !data.old_val && data.new_val ){
+                        console.log("NEW");
                         io_client.emit('logs_look', {
                             e: 'new'
                             ,data: data.new_val
@@ -249,6 +250,7 @@ try {
 
                     // Удалился лог
                     else if( data.old_val && !data.new_val ){
+                        console.log("DELETE 1");
                         io_client.emit('logs_look', {
                             e: 'del'
                             ,data: data.old_val
@@ -257,6 +259,7 @@ try {
 
                     // Изменение данных
                     else if( data.old_val && data.new_val ){
+                        console.log("UPDATE");
                         io_client.emit('logs_look', {
                             e: 'upd'
                             ,data: data.new_val

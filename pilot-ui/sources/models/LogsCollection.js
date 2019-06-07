@@ -41,13 +41,13 @@ LogsCollection.Get = function(log_id){
 //
 // Removes log from DB
 // resolves True, rejects Message
-LogsCollection.Remove = function(values){
+LogsCollection.Remove = function(log_id){
 
     const _this = this;
 
     return new Promise(function(resolve, reject){
 
-        window.app.getService('io').rpc('logRemove', values)
+        window.app.getService('io').rpc('logRemove', {id:log_id})
             .then( data => {
                 _this.remove(data.id);
                 resolve(true);

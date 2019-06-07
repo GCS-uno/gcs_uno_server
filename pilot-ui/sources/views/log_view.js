@@ -16,7 +16,7 @@ export default class LogView extends JetView {
 
     init(view, url){
 
-        top_controls_id = webix.$$('top_view_controls').addView(view_controls);
+        top_controls_id = webix.$$('top_view_controls').addView(top_controls);
 
     }
 
@@ -41,11 +41,28 @@ export default class LogView extends JetView {
         const list_errs = this.$$('list:errors');
         const list_msgs = this.$$('list:messages');
         const list_events = this.$$('list:events');
+        const btn_remove = webix.$$('log_view:btn:trash');
 
         // Создание вида после загрузки карты
         map.getMap(true).then(function(mapObj) {
             // Установка параметров карты
             mapObj.setOptions(map_options);
+        });
+
+        btn_remove.attachEvent('onItemClick', () => {
+            webix.confirm({
+                ok: "Remove",
+                cancel: "Cancel",
+                text: "This log will be COMPLETELY REMOVED!",
+                callback: (result) => {
+                    if( result ) {
+                        LogsCollection.Remove(log_id)
+                            .then(function(){Message.info('Log removed')})
+                            .catch(console.log);
+                        this.show('logs_list');
+                    }
+                }
+            });
         });
 
         const att_chart = Highcharts.chart('log_att_chart', {
@@ -802,9 +819,19 @@ export default class LogView extends JetView {
 
 //
 // Кнопки для верхней панели
-const view_controls = {
+//
+// Кнопки для верхней панели приложения
+const top_controls = {
     cols: [
-
+        {gravity: 4}
+        // Кнопка Удалить полетный план
+        ,{
+            view: 'icon'
+            ,type: 'iconButton'
+            ,id: 'log_view:btn:trash'
+            ,icon: 'mdi mdi-delete'
+            ,tooltip: 'Remove this log'
+        }
     ]
 };
 

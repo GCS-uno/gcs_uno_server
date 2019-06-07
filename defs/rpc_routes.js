@@ -4,6 +4,7 @@ const common_config = require('../configs/common_config')
      ,{LOG_ERRORS, LOG_EVENTS} = require('../defs/mavlink')
      ,_ = require('lodash')
      ,Logger = require('./../utils/logger')
+     ,fs = require('fs')
      ,helpers = require('./../utils/helpers')
      ,validators = require('./form_validators') // Form fields validators
      ,DroneModel = require('./../db_models/Drone') // Drone model
@@ -764,7 +765,6 @@ const RPC_routes = {
 
                 try {
 
-                    const fs = require('fs');
                     fs.readFile('./../logs/' + log.bin_file, (err, data) => {
                         if (err) throw err;
                         console.log(data.slice(0,10));
@@ -1085,6 +1085,42 @@ const RPC_routes = {
             })
             .catch(function(){
                 reject('Log not found in DB');
+            });
+    },
+
+    //
+    // Удаление логов
+    logRemove: function(data, resolve, reject){ console.log('Log remove act');
+        if( !_.has(data, 'id') ){
+            reject('no id');
+            return;
+        }
+
+        FlightLogModel.get(data.id)
+            .run().then( log => {
+                let log_file = log.bin_file;
+
+                console.log('Log remove act ' + log_file);
+                log.delete()
+                    .then( r => {
+                        // Remove file
+                        fs.unlink('./../logs/' + log_file, (err) => {
+                            if( err )Logger.error('Failed to delete file ' + log_file, err);
+
+                            console.log('file log removed');
+                        });
+
+                        console.log('DB log removed');
+
+                        resolve({id: data.id})
+                    })
+                    .catch( function(){
+                        reject("Failed to delete from DB");
+                    });
+            })
+
+            .catch( function(){
+                reject("Log not found");
             });
     }
 

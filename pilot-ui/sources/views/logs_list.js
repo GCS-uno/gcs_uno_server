@@ -76,12 +76,7 @@ export default class LogsListView extends JetView {
         //
         // Клик по строке в таблице открывает лог
         this.table_logs.attachEvent('onItemClick', (id, e, node) => {
-
-            // TODO открыть вид с логом
-            Message.info('Open log view');
-
             this.show('log_view?id=' + id.toString());
-
         });
 
         LogsCollection.List();
@@ -94,15 +89,18 @@ export default class LogsListView extends JetView {
             if( !changes.hasOwnProperty('e') || !changes.hasOwnProperty('data') ) return;
 
             if( 'new' === changes.e ){
-                LogsCollection.add(changes.data);
+                console.log("NEW", changes.data);
+                if( !LogsCollection.getItem(changes.data.id) ) LogsCollection.add(changes.data);
             }
             else if( 'del' === changes.e ){
-                LogsCollection.remove(changes.data.id);
+                console.log("DELETE", changes.data);
+                if( LogsCollection.getItem(changes.data.id) ) LogsCollection.remove(changes.data.id);
             }
             else if( 'upd' === changes.e ){
+                console.log("UPDATE", changes.data);
                 let id = changes.data.id;
                 delete changes.data.id;
-                LogsCollection.updateItem(id, changes.data);
+                if( LogsCollection.getItem(changes.data.id) ) LogsCollection.updateItem(id, changes.data);
             }
 
         });
@@ -122,7 +120,7 @@ export default class LogsListView extends JetView {
 // Кнопки для верхней панели приложения
 const top_controls = {
     cols: [
-        // Кнопка Добавить нового дрона
+        // Кнопка Загрузить лог из файла
         {
             view: 'button'
             ,type: 'iconButton'
@@ -132,9 +130,10 @@ const top_controls = {
             ,css: 'button_primary'
             ,autowidth: true
         }
-        ,{}
+        ,{gravity: 4}
     ]
 };
+
 
 //
 // Загрузчик файлов
