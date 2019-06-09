@@ -1,6 +1,7 @@
 const common_config = require('../configs/common_config')
      ,{RPC} = require('../utils/redis')
      ,RK = require('../defs/redis_keys')
+     ,MAVLINK_DEF = require('../defs/mavlink')
      ,{LOG_ERRORS, LOG_EVENTS} = require('../defs/mavlink')
      ,_ = require('lodash')
      ,Logger = require('./../utils/logger')
@@ -774,14 +775,20 @@ const RPC_routes = {
                         console.log('Read file: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
 
-                        let sf = JSON.parse(data);
+                        let log_msgs = JSON.parse(data);
 
                         let m_list = {};
                         let start_time = null;
-                        let finish_time = 0;
+                        let end_time = 0;
+                        let info = {
+                            type: 'Unknown'
+                            ,log_time: 0
+                        };
+                        let log_modes = {};
+                        let log_modes_timeline = [];
 
                         // Раскидать сообщения по группам
-                        _.each(sf, function(m, ind){
+                        _.each(log_msgs, function(m, ind){
                             try {
                                 if( _.has(m, 'mavpackettype') ){
                                     if( _.has(m_list, m['mavpackettype']) ){
@@ -794,7 +801,7 @@ const RPC_routes = {
                                     if( _.has(m, 'TimeUS') ){
                                         let timeus = parseInt(m['TimeUS']);
                                         if( !start_time ) start_time = timeus;
-                                        if( timeus > finish_time ) finish_time = timeus;
+                                        if( timeus > end_time ) end_time = timeus;
                                     }
                                 }
                                 else {
@@ -808,7 +815,7 @@ const RPC_routes = {
                             }
                         });
 
-                        let log_time = Math.round((finish_time-start_time)/1000000);
+                        info.log_time = Math.round((end_time-start_time)/1000000);
 
                         /* Распечатать список групп и полей
                         _.mapKeys(m_list, (value, key) => {
@@ -819,9 +826,6 @@ const RPC_routes = {
                             //});
                         });
                          //*/
-
-                        //console.log('Log time, sec: ', log_time);
-                        //console.log('Cache size KB', Math.round(parsed_strings.length/1024));
 
                         console.log('Data parsed in: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
@@ -904,12 +908,11 @@ const RPC_routes = {
                         if( _.has(m_list, 'ERR') ){
                             _.each(m_list['ERR'], (rec) => {
 
-                                let err_time = Math.round((parseInt(rec['TimeUS'])-start_time)/10000);
+                                let err_time = parseInt(rec['TimeUS'])-start_time;
                                 err_data.push({t: err_time, msg: log_err_msg(parseInt(rec['Subsys']), parseInt(rec['ECode']))});
 
                             });
                         }
-                        log_data['ERR'] = err_data;
 
                         //
                         // EV events
@@ -922,7 +925,6 @@ const RPC_routes = {
 
                             });
                         }
-                        log_data['EV'] = events_data;
 
                         //
                         // MSG
@@ -933,16 +935,67 @@ const RPC_routes = {
                                 let time = Math.round((parseInt(rec['TimeUS'])-start_time)/1000000);
                                 msgs_data.push({t: time, msg: rec['Message']});
 
+                                if( rec['Message'].includes('Rover') ){
+                                    info.type = 'ArduRover';
+                                    log_modes = MAVLINK_DEF.FLIGHT_MODES[3].rover;
+                                }
+                                else if( rec['Message'].includes('Plane') ){
+                                    info.type = 'ArduPlane';
+                                    log_modes = MAVLINK_DEF.FLIGHT_MODES[3].plane;
+                                }
+                                else if( rec['Message'].includes('Copter') ){
+                                    info.type = 'ArduCopter';
+                                    log_modes = MAVLINK_DEF.FLIGHT_MODES[3].copter;
+                                }
+                                else if( rec['Message'].includes('Antenna') ){
+                                    info.type = 'Ardupilot Antenna Tracker';
+                                }
+                                else if( rec['Message'].includes('ArduSub') ){
+                                    info.type = 'ArduSub';
+                                    log_modes = MAVLINK_DEF.FLIGHT_MODES[3].boat;
+                                }
+
                             });
                         }
-                        log_data['MSG'] = msgs_data;
 
                         //
                         // MODE
                         if( _.has(m_list, 'MODE') ){
-                            //console.log(m_list.MODE);
-                        }
+                            let current_mode = null;
+                            _.each(m_list['MODE'], (rec) => {
+                                let mode_num = parseInt(rec['ModeNum']);
+                                let time = Math.round((parseInt(rec['TimeUS'])-start_time)/10000);
+                                let mode_name = '';
+                                if( _.has(log_modes, mode_num) ){
+                                    mode_name = log_modes[mode_num].name;
+                                }
+                                else {
+                                    mode_name = 'Mode ' + mode_num;
+                                }
 
+                                if( !current_mode ){
+                                    current_mode = {num: mode_num, name: mode_name, start: time};
+                                }
+                                else {
+                                    if( mode_num !== current_mode.num ){
+                                        log_modes_timeline.push({
+                                            num: current_mode.num
+                                            ,name: current_mode.name
+                                            ,start: current_mode.start
+                                            ,end: time
+                                        });
+                                        current_mode = {num: mode_num, name: mode_name, start: time};
+                                    }
+                                }
+                            });
+                            log_modes_timeline.push({
+                                num: current_mode.num
+                                ,name: current_mode.name
+                                ,start: current_mode.start
+                                ,end: Math.round((end_time-start_time)/10000)
+                            });
+
+                        }
 
                         const parse_group =function(group, options={}){ // {ints:[],text:[],float_prec:3}
                             let data = {};
@@ -1011,13 +1064,14 @@ const RPC_routes = {
                         //
                         // Отправка данных в браузер
                         resolve({
-                            info: 'info'
+                            info: info
                             ,pos_gps: pos_data.gps
                             ,pos_pos: pos_data.pos
 
                             ,errors: err_data
                             ,messages: msgs_data
                             ,events: events_data
+                            ,modes: log_modes_timeline
 
                             ,log_data: log_data
                         });

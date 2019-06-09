@@ -1,7 +1,7 @@
 const FLIGHT_MODES = {
 
     3: { // ArduPilot
-        plane: {
+         plane: {
             0: {name: 'MANUAL', base: 1, custom: 0}
             ,1: {name: 'CIRCLE', base: 1, custom: 1}
             ,2: {name: 'STABILIZE', base: 1, custom: 2}

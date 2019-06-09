@@ -42,6 +42,9 @@ export default class LogView extends JetView {
         const list_msgs = this.$$('list:messages');
         const list_events = this.$$('list:events');
         const btn_remove = webix.$$('log_view:btn:trash');
+        const modes_switch = webix.$$('log_view:sw:modes');
+        const errors_switch = webix.$$('log_view:sw:errors');
+        const info_tpl = this.$$('tpl:info');
 
         // Создание вида после загрузки карты
         map.getMap(true).then(function(mapObj) {
@@ -49,6 +52,7 @@ export default class LogView extends JetView {
             mapObj.setOptions(map_options);
         });
 
+        // Кнопка Удалить лог
         btn_remove.attachEvent('onItemClick', () => {
             webix.confirm({
                 ok: "Remove",
@@ -64,6 +68,7 @@ export default class LogView extends JetView {
                 }
             });
         });
+
 
         const att_chart = Highcharts.chart('log_att_chart', {
             chart: {
@@ -88,44 +93,6 @@ export default class LogView extends JetView {
                 title: {
                     text: 'att'
                 }
-                /*
-                ,plotBands: [
-                    { // Green
-                        from: 0,
-                        to: 5,
-                        color: 'rgba(46,211,15,0.52)',
-                        label: {
-                            text: 'Good',
-                            style: {
-                                color: '#606060'
-                            }
-                        }
-                    }
-                    ,{ // Yellow
-                        from: 5,
-                        to: 10,
-                        color: 'rgba(255,188,56,0.52)',
-                        label: {
-                            text: 'Check',
-                            style: {
-                                color: '#606060'
-                            }
-                        }
-                    }
-                    ,{ // Red
-                        from: 10,
-                        to: 100,
-                        color: 'rgba(255,47,49,0.52)',
-                        label: {
-                            text: 'Danger',
-                            style: {
-                                color: '#606060'
-                            }
-                        }
-                    }
-                ]
-
-                 */
             },
             xAxis: {
                 title: {
@@ -508,45 +475,144 @@ export default class LogView extends JetView {
             ,series: []
         });
 
+        const charts = {
+            att_chart: att_chart
+            ,vibe_xyz_chart: vibe_xyz_chart
+            ,vibe_clip_chart: vibe_clip_chart
+            ,alt_chart: alt_chart
+            ,cr_chart: cr_chart
+            ,pl_chart: pl_chart
+            ,of_chart: of_chart
+        };
+
+        let modes_timeline = [];
+        let modes_colors = {};
+        let errors_timeline = [];
+
+
+        // Показать полетные режимы на графиках
+        const show_modes = function(){
+            if( !modes_timeline.length ) return;
+
+            for( let chart_name in charts ){
+                if( !charts.hasOwnProperty(chart_name) ) continue;
+
+                modes_timeline.forEach( mode => {
+                    charts[chart_name].xAxis[0].addPlotBand({
+                        color: modes_colors[mode.num]
+                        ,from: mode.start
+                        ,to: mode.end
+                        ,id: mode.start + '_' + mode.name
+                        ,label: {
+                            text: mode.name
+                            ,align: 'left'
+                        }
+                    });
+                })
+            }
+        };
+
+        // Отключить полетные режимы на графиках
+        const hide_modes = function(){
+            if( !modes_timeline.length ) return;
+
+            for( let chart_name in charts ) {
+                if (!charts.hasOwnProperty(chart_name)) continue;
+
+                modes_timeline.forEach( mode => {
+                    charts[chart_name].xAxis[0].removePlotBand(mode.start + '_' + mode.name);
+                })
+            }
+        };
+
+        // Показать ошибки на графиках
+        const show_errors = function(){
+            if( !errors_timeline.length ) return;
+
+            for( let chart_name in charts ) {
+                if (!charts.hasOwnProperty(chart_name)) continue;
+
+                errors_timeline.forEach( el => {
+                    charts[chart_name].xAxis[0].addPlotLine({
+                        color: 'red'
+                        ,dashStyle: 'Dash'
+                        ,value: el.t/10000
+                        ,width: 2
+                        ,id: el.t
+                        ,label: {
+                            text: el.msg
+                        }
+                    });
+                });
+            }
+        };
+
+        // Отключить ошибки на графиках
+        const hide_errors = function(){
+            if( !errors_timeline.length ) return;
+
+            for( let chart_name in charts ) {
+                if (!charts.hasOwnProperty(chart_name)) continue;
+
+                errors_timeline.forEach( el => {
+                    charts[chart_name].xAxis[0].removePlotLine(el.t);
+                });
+            }
+        };
+
+
+        modes_switch.attachEvent('onChange', value => {
+            if( !!value ) show_modes();
+            else hide_modes();
+        });
+
+        errors_switch.attachEvent('onChange', value => {
+            if( !!value ) show_errors();
+            else hide_errors();
+        });
+
+
 
         LogsCollection.Get(log_id)
             .then( data => {
                 console.log('Log data', data);
 
-                list_errs.parse(data.log_data.ERR);
-                list_msgs.parse(data.log_data.MSG);
-                list_events.parse(data.log_data.EV);
+                list_errs.parse(data.errors);
+                list_msgs.parse(data.messages);
+                list_events.parse(data.events);
 
+                // Инфо
+                info_tpl.setValues(data.info);
 
                 // Положение ATT
                 if( data.log_data.ATT ){
-                    att_chart.addSeries({
-                        name: 'Des Roll'
+                    charts.att_chart.addSeries({
+                        name: 'Desired Roll'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.DesRoll
                     });
-                    att_chart.addSeries({
-                        name: 'Roll'
+                    charts.att_chart.addSeries({
+                        name: 'Actual Roll'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.Roll
                     });
-                    att_chart.addSeries({
-                        name: 'Des pitch'
+                    charts.att_chart.addSeries({
+                        name: 'Desired Pitch'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.DesPitch
                     });
-                    att_chart.addSeries({
-                        name: 'Pitch'
+                    charts.att_chart.addSeries({
+                        name: 'Actual Pitch'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.Pitch
                     });
-                    att_chart.addSeries({
-                        name: 'Des yaw'
+                    charts.att_chart.addSeries({
+                        name: 'Desired Yaw'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.DesYaw
                     });
-                    att_chart.addSeries({
-                        name: 'Yaw'
+                    charts.att_chart.addSeries({
+                        name: 'Actual Yaw'
                         ,lineWidth: 1
                         ,data: data.log_data.ATT.Yaw
                     });
@@ -555,7 +621,7 @@ export default class LogView extends JetView {
                 // Вибрация
                 if( data.log_data.VIBE ){
                     if( data.log_data.VIBE.hasOwnProperty('VibeX') ){
-                        vibe_xyz_chart.addSeries({
+                        charts.vibe_xyz_chart.addSeries({
                             name: 'X'
                             ,lineWidth: 1
                             ,data: data.log_data.VIBE.VibeX
@@ -563,7 +629,7 @@ export default class LogView extends JetView {
                         });
                     }
                     if( data.log_data.VIBE.hasOwnProperty('VibeY') ){
-                        vibe_xyz_chart.addSeries({
+                        charts.vibe_xyz_chart.addSeries({
                             name: 'Y'
                             ,lineWidth: 1
                             ,data: data.log_data.VIBE.VibeY
@@ -571,7 +637,7 @@ export default class LogView extends JetView {
                         });
                     }
                     if( data.log_data.VIBE.hasOwnProperty('VibeZ') ){
-                        vibe_xyz_chart.addSeries({
+                        charts.vibe_xyz_chart.addSeries({
                             name: 'Z'
                             ,lineWidth: 1
                             ,data: data.log_data.VIBE.VibeZ
@@ -580,21 +646,21 @@ export default class LogView extends JetView {
                     }
 
                     if( data.log_data.VIBE.hasOwnProperty('Clip0') ){
-                        vibe_clip_chart.addSeries({
+                        charts.vibe_clip_chart.addSeries({
                             name: 'Clip 0'
                             ,lineWidth: 2
                             ,data: data.log_data.VIBE.Clip0
                         });
                     }
                     if( data.log_data.VIBE.hasOwnProperty('Clip1') ){
-                        vibe_clip_chart.addSeries({
+                        charts.vibe_clip_chart.addSeries({
                             name: 'Clip 1'
                             ,lineWidth: 2
                             ,data: data.log_data.VIBE.Clip1
                         });
                     }
                     if( data.log_data.VIBE.hasOwnProperty('Clip2') ){
-                        vibe_clip_chart.addSeries({
+                        charts.vibe_clip_chart.addSeries({
                             name: 'Clip 2'
                             ,lineWidth: 2
                             ,data: data.log_data.VIBE.Clip2
@@ -605,35 +671,35 @@ export default class LogView extends JetView {
                 // Высоты и вертикальное ускорение
                 if( data.log_data.CTUN ){
                     if( data.log_data.CTUN.hasOwnProperty('Alt') ){
-                        alt_chart.addSeries({
+                        charts.alt_chart.addSeries({
                             name: 'EKF Altitude'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['Alt']
                         });
                     }
                     if( data.log_data.CTUN.hasOwnProperty('DAlt') ){
-                        alt_chart.addSeries({
+                        charts.alt_chart.addSeries({
                             name: 'Desired Altitude'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['DAlt']
                         });
                     }
                     if( data.log_data.CTUN.hasOwnProperty('BAlt') ){
-                        alt_chart.addSeries({
+                        charts.alt_chart.addSeries({
                             name: 'Baro Altitude'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['BAlt']
                         });
                     }
                     if( data.log_data.CTUN.hasOwnProperty('DSAlt') ){
-                        alt_chart.addSeries({
+                        charts.alt_chart.addSeries({
                             name: 'Desired RF Altitude'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['DSAlt']
                         });
                     }
                     if( data.log_data.CTUN.hasOwnProperty('SAlt') ){
-                        alt_chart.addSeries({
+                        charts.alt_chart.addSeries({
                             name: 'RF Altitude'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['SAlt']
@@ -641,14 +707,14 @@ export default class LogView extends JetView {
                     }
 
                     if( data.log_data.CTUN.hasOwnProperty('CRt') ){
-                        cr_chart.addSeries({
+                        charts.cr_chart.addSeries({
                             name: 'Actual rate'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['CRt']
                         });
                     }
                     if( data.log_data.CTUN.hasOwnProperty('DCRt') ){
-                        cr_chart.addSeries({
+                        charts.cr_chart.addSeries({
                             name: 'Desired rate'
                             ,lineWidth: 1
                             ,data: data.log_data.CTUN['DCRt']
@@ -658,37 +724,37 @@ export default class LogView extends JetView {
 
                 // PL
                 if( data.log_data.PL ){
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'X position'
                         ,lineWidth: 1
                         ,data: data.log_data.PL['pX']
                         ,yAxis: 0
                     });
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'Y position'
                         ,lineWidth: 1
                         ,data: data.log_data.PL['pY']
                         ,yAxis: 0
                     });
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'X velocity'
                         ,lineWidth: 1
                         ,data: data.log_data.PL['vX']
                         ,yAxis: 0
                     });
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'Y velocity'
                         ,lineWidth: 1
                         ,data: data.log_data.PL['vY']
                         ,yAxis: 0
                     });
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'Sensor health'
                         ,lineWidth: 2
                         ,data: data.log_data.PL['Heal']
                         ,yAxis: 1
                     });
-                    pl_chart.addSeries({
+                    charts.pl_chart.addSeries({
                         name: 'Target acquired'
                         ,lineWidth: 3
                         ,data: data.log_data.PL['TAcq']
@@ -698,31 +764,31 @@ export default class LogView extends JetView {
 
                 // OF
                 if( data.log_data.OF ){
-                    of_chart.addSeries({
+                    charts.of_chart.addSeries({
                         name: 'Flow X'
                         ,lineWidth: 1
                         ,data: data.log_data.OF['flowX']
                         ,yAxis: 0
                     });
-                    of_chart.addSeries({
+                    charts.of_chart.addSeries({
                         name: 'Flow Y'
                         ,lineWidth: 1
                         ,data: data.log_data.OF['flowY']
                         ,yAxis: 0
                     });
-                    of_chart.addSeries({
+                    charts.of_chart.addSeries({
                         name: 'Body X'
                         ,lineWidth: 1
                         ,data: data.log_data.OF['bodyX']
                         ,yAxis: 0
                     });
-                    of_chart.addSeries({
+                    charts.of_chart.addSeries({
                         name: 'Body Y'
                         ,lineWidth: 1
                         ,data: data.log_data.OF['bodyX']
                         ,yAxis: 0
                     });
-                    of_chart.addSeries({
+                    charts.of_chart.addSeries({
                         name: 'Quality'
                         ,lineWidth: 1
                         ,data: data.log_data.OF['Qual']
@@ -746,18 +812,31 @@ export default class LogView extends JetView {
                  */
 
 
-                // Отрисовка ошибок на графике положения
-                data.log_data.ERR.forEach( el => {
-                    att_chart.xAxis[0].addPlotLine({
-                        color: 'red'
-                        ,dashStyle: 'Dash'
-                        ,value: el.t
-                        ,width: 2
-                        ,label: {
-                            text: el.msg
-                        }
+                if( data.errors && data.errors.length ) errors_timeline = data.errors;
+
+                // Подготовка набора цветов для отображения полетных режимов
+                if( data.modes && data.modes.length ) {
+                    modes_timeline = data.modes;
+
+                    // Подготовить набор цветов для отображения режимов
+                    let mode_colors_set = [
+                        'rgba(255,250,32,0.3)'
+                        ,'rgba(255,7,164,0.3)'
+                        ,'rgba(98,5,255,0.3)'
+                        ,'rgba(10,65,255,0.3)'
+                        ,'rgba(9,255,93,0.3)'
+                        ,'rgba(71,83,96,0.3)'
+                        ,'rgba(255,195,16,0.3)'
+                        ,'rgba(255,47,49,0.3)'
+                    ];
+                    modes_timeline.forEach( mode => {
+                        if( !modes_colors.hasOwnProperty(mode.num) ) modes_colors[mode.num] = mode_colors_set[Math.floor(Math.random() * mode_colors_set.length)];
                     });
-                });
+                }
+
+                if( !!modes_switch.getValue() ) show_modes();
+
+                if( !!errors_switch.getValue() ) show_errors();
 
                 // Отрисовка пути на карте
                 map.getMap(true).then(function(mapObj) {
@@ -821,7 +900,10 @@ export default class LogView extends JetView {
 // Кнопки для верхней панели приложения
 const top_controls = {
     cols: [
-        {gravity: 4}
+        { view: 'switch', id: 'log_view:sw:modes', value: 0, labelRight: 'Show modes', labelWidth: 0}
+        ,{width: 30}
+        ,{ view: 'switch', id: 'log_view:sw:errors', value: 0, labelRight: 'Show errors', labelWidth: 0}
+        ,{gravity: 4}
         // Кнопка Удалить полетный план
         ,{
             view: 'icon'
@@ -868,7 +950,12 @@ const view_config = {
     ,body: {
         rows: [
             {
-                template: 'Some info about log'
+                view: 'template'
+                ,localId: 'tpl:info'
+                ,template:  function(data){
+                    return 'Type: ' + (data.type || '') + '<br/>' +
+                           'Log time: ' + (data.log_time ? helpers.readable_seconds(data.log_time) : '')
+                }
                 ,height: 100
                 ,borderless: true
             }
