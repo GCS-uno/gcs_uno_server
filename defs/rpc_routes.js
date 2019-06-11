@@ -15,7 +15,6 @@ const common_config = require('../configs/common_config')
 
 
 const log_err_msg = function(subsys, ecode){
-    // subsys == 10
     let msg = '';
     if( 10 === subsys ) msg = 'Mode set failed ' + ecode;
     else if( _.has(LOG_ERRORS, '' + subsys + ecode) ) msg = LOG_ERRORS['' + subsys + ecode];
@@ -900,7 +899,7 @@ const RPC_routes = {
                         //
                         //  Log data
                         let log_data = {};
-                        let max_freq = 20;
+                        let max_freq = 50;
 
                         //
                         // ERR errors

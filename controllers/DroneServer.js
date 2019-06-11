@@ -1793,6 +1793,43 @@ class FlightPathController {
 
 }
 
+//
+// Контроллер загрузки лог файлов
+class LogDownloadController {
+    constructor(drone){
+        this.drone = drone;
+        this.path = []; // array of [lng,lat]
+
+        // Очистить след если дрон дезактивирован
+        drone.events.on('disarmed', () => { this.auto_download() });
+
+        drone.mavlink.on('LOG_ENTRY', fields => {
+            console.log('LOG_ENTRY', fields);
+        });
+
+    }
+
+    get_list(){
+        console.log('get list');
+        // Запросить лист
+        this.drone.mavlink.sendMessage('LOG_REQUEST_LIST', {
+            target_system: this.drone.mavlink.sysid
+            ,target_component: this.drone.mavlink.compid
+            ,start: 0
+            ,end: 0xffff
+        });
+    }
+
+    download(){
+
+    }
+
+    auto_download(){
+        console.log('autodownload');
+        this.get_list();
+    }
+}
+
 
 /* объект Drone
 
@@ -1901,6 +1938,7 @@ class DroneServer {
         this.mission_download = new MissionDownloadController(this);
         this.mission_upload = new MissionUploadController(this);
         this.flight_path = new FlightPathController(this);
+        this.log_download = new LogDownloadController(this);
 
         Logger.info(`DroneServer started (${helpers.now_ms()-start_time}ms) for ${this.params.name}`);
 

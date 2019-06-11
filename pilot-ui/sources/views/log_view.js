@@ -34,7 +34,7 @@ export default class LogView extends JetView {
 
         const log_item = LogsCollection.getItem(log_id);
 
-        // Сделать в заголовке ссылку на список и добавить название дрона
+        // Сделать в заголовке ссылку на список и добавить название лога
         this.app.getService('topTitle').update([{text: 'Logs', link: '/app/logs_list'}, {text: log_item.name}]);
 
         const map = this.$$('map:drone');
@@ -42,8 +42,8 @@ export default class LogView extends JetView {
         const list_msgs = this.$$('list:messages');
         const list_events = this.$$('list:events');
         const btn_remove = webix.$$('log_view:btn:trash');
-        const modes_switch = webix.$$('log_view:sw:modes');
-        const errors_switch = webix.$$('log_view:sw:errors');
+        const switch_modes = webix.$$('log_view:sw:modes');
+        const switch_errors = webix.$$('log_view:sw:errors');
         const info_tpl = this.$$('tpl:info');
 
         // Создание вида после загрузки карты
@@ -561,12 +561,12 @@ export default class LogView extends JetView {
         };
 
 
-        modes_switch.attachEvent('onChange', value => {
+        switch_modes.attachEvent('onChange', value => {
             if( !!value ) show_modes();
             else hide_modes();
         });
 
-        errors_switch.attachEvent('onChange', value => {
+        switch_errors.attachEvent('onChange', value => {
             if( !!value ) show_errors();
             else hide_errors();
         });
@@ -834,9 +834,9 @@ export default class LogView extends JetView {
                     });
                 }
 
-                if( !!modes_switch.getValue() ) show_modes();
+                if( !!switch_modes.getValue() ) show_modes();
 
-                if( !!errors_switch.getValue() ) show_errors();
+                if( !!switch_errors.getValue() ) show_errors();
 
                 // Отрисовка пути на карте
                 map.getMap(true).then(function(mapObj) {
@@ -999,7 +999,7 @@ const view_config = {
                         rows: [
                             { view: 'template', template: 'Errors', type: 'header' }
                             ,{ view: 'list', localId: 'list:errors', template: function(row){
-                                    return helpers.readable_seconds(Math.round(row.t/100)) + ' ' + row.msg;
+                                    return helpers.readable_seconds(Math.round(row.t/1000000)) + ' ' + row.msg;
                                 } }
                         ]
                     }
