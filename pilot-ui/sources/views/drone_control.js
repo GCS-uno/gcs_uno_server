@@ -19,6 +19,9 @@ export default class DroneView extends JetView {
         this.fi_popup = this.ui(fi_popup);
         this.telemetry_popup = this.ui(telemetry_popup);
         this.takeoff_popup = this.ui(takeoff_popup);
+        this.log_dl_popup = this.ui(log_download_popup);
+            webix.extend(this.log_dl_popup, webix.ProgressBar);
+        this.logs_list_popup = this.ui(logs_list_popup);
 
         top_controls_id = webix.$$('top_view_controls').addView(top_controls);
 
@@ -92,6 +95,7 @@ const action_menu_popup = {
     ,zIndex: 6
     ,body: {
         width:300
+        ,padding: 10
         ,rows: [
             // Серво
             {
@@ -115,18 +119,22 @@ const action_menu_popup = {
                 ]
             }
 
+            // Список лог файлов
+            ,{
+                view: 'button'
+                ,type: 'iconButton'
+                ,localId: 'btn:get_logs_list'
+                ,label: 'Board logs list'
+                ,icon: 'mdi mdi-file-table'
+            }
+
             // Кнопка Загрузить полетный план с борта
             ,{
-                padding: 20
-                ,cols: [
-                    {
-                        view: 'button'
-                        ,type: 'iconButton'
-                        ,localId: 'btn:get_mission'
-                        ,label: 'Download mission'
-                        ,icon: 'mdi mdi-download'
-                    }
-                ]
+                view: 'button'
+                ,type: 'iconButton'
+                ,localId: 'btn:get_mission'
+                ,label: 'Download mission'
+                ,icon: 'mdi mdi-download'
             }
 
             ,{}
@@ -260,6 +268,99 @@ const takeoff_popup = {
         ]
     }
 };
+
+// Окошко со статусом загрузки логфайла
+const log_download_popup = {
+    view: 'window'
+    ,id: 'drone_view_popup_log_dl'
+    ,headHeight: 0
+    ,head: false
+    ,borderless: true
+    ,position: 'top'
+    ,zIndex: 1000
+    ,body: {
+        padding: 20
+        ,width: 300
+        //,height: 150
+        ,rows: [
+            { localId: 'tpl:log_msg', borderless: true, template: function(data){
+                    if( !data.status ) return '';
+
+                    if( 'pend' === data.status && data.c ){
+                        return '<div class="log_report_popup">Downloaded ' + data.c.p + '% of ' + data.c.s + '</div>'
+                                + '<div class="log_report_popup">Speed: ' + data.c.sp + '/sec</div>'
+                                + '<div class="log_report_popup">Remaining time: ' + data.c.tr + '</div>';
+                    }
+                    else return data.msg;
+
+                }}
+            ,{
+                cols: [
+                    { view: 'button', label: 'Stop downloading', type: 'iconButton', icon: 'mdi mdi-cancel', localId: 'btn:stop', hidden: true }
+                    ,{ view: 'button', label: 'View log', type: 'iconButton', icon: 'mdi mdi-file-table', localId: 'btn:view', hidden: true }
+                    ,{ view: 'button', label: 'Close', type: 'iconButton', icon: 'mdi mdi-close', localId: 'btn:close', hidden: true, click: function(){ this.getTopParentView().hide();}}
+                ]
+            }
+        ]
+    }
+};
+
+// Окошко со списком бортовых лог файлов
+const logs_list_popup = {
+    view: 'window'
+    ,id: 'drone_view_popup_logs_list'
+    //,headHeight: 0
+    ,head: 'Board log files'
+    ,borderless: true
+    ,position: 'center'
+    ,zIndex: 1000
+    ,body: {
+        padding: 10
+        ,width: 500
+        ,rows: [
+            {
+                view: 'datatable'
+                ,localId: 'dtb:logs_list'
+                ,height: 300
+                ,columns: [
+                    { id: 'id', header: '#', width: 50 },
+                    { id: 'ts', header: 'Time', fillspace: true },
+                    { id: 'sz', header: 'Size', width: 100 },
+                    { id: 'btn', header: '', width: 100, template: function(row){
+                            if( row.view ) return "<div class='webix_el_button'><button class='act_view'>View</button></div>";
+                            else return "<div class='webix_el_button'><button class='act_dl'>Download</button></div>";
+                        } }
+                ]
+                ,onClick: {
+                    act_view: function(ev, id, html){
+                        webix.alert("VIEW " + id);
+                    }
+                    ,act_dl: function(ev, id, html){
+                        webix.alert("DOWNLOAD " + id);
+                    }
+                }
+                ,data: [
+                    {id: 1, ts: '324234234', sz: 324234, view: 0 }
+                    ,{id: 2, ts: '324234234', sz: 23121, view: 1 }
+                    ,{id: 3, ts: '324234232', sz: 43543, view: 0 }
+                    ,{id: 4, ts: '3242342645', sz: 12122, view: 1 }
+                    ,{id: 5, ts: '324234238', sz: 7686, view: 1 }
+                ]
+            }
+            ,{
+                cols: [
+                    { view: 'button', label: 'Erase all', type: 'iconButton', icon: 'mdi mdi-trash', localId: 'btn:erase' }
+                    ,{width:20}
+                    ,{ view: 'button', label: 'Close', type: 'iconButton', icon: 'mdi mdi-close', click: function(){
+                            this.getTopParentView().hide();
+                        } }
+                ]
+            }
+        ]
+    }
+};
+
+
 
 //
 // Кнопки для верхней панели

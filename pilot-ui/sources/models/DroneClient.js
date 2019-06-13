@@ -266,6 +266,10 @@ class DroneClient {
 
         this.player = null;
 
+        this.RPC = (method, data) => {
+            return _this.socket.rpc('droneRPC', {drone_id: _this.drone.id, method: method, data: data});
+        };
+
         //
         // Маркер на карте
         this.marker = new google.maps.Marker({
@@ -966,6 +970,47 @@ class DroneClient {
                 _this.socket.off('report_log_dl_' + _this.drone.id);
                 _this.socket.on('report_log_dl_' + _this.drone.id, (response) => {
                     console.log(response);
+
+                    if( _this.view && _this.view_enabled && _this.view_els.log_dl_popup ){
+                        if( !_this.view_els.log_dl_popup.isVisible() && 'stopped' !== response.status ) _this.view_els.log_dl_popup.show();
+
+                        _this.view_els.log_dl_msg.setValues(response);
+
+
+                        if( response.hasOwnProperty('c') ){
+                            let pr_pos = response.c.p/100;
+                            if( pr_pos < 0.01 ) pr_pos = 0.01;
+                            _this.view_els.log_dl_popup.showProgress({ type: 'top', position: pr_pos, hide: false});
+                            if( !_this.view_els.log_dl_stop.isVisible()) _this.view_els.log_dl_stop.show();
+                            if( _this.view_els.log_dl_close.isVisible()) _this.view_els.log_dl_close.hide();
+                            if( _this.view_els.log_dl_view.isVisible()) _this.view_els.log_dl_view.hide();
+                        }
+                        else if( 'pars' === response.status ){
+                            _this.view_els.log_dl_popup.showProgress({ type: 'top', position: 1, hide: false});
+
+                        }
+                        else if( 'failed' === response.status ){
+                            if( _this.view_els.log_dl_stop.isVisible()) _this.view_els.log_dl_stop.hide();
+                            if( !_this.view_els.log_dl_close.isVisible()) _this.view_els.log_dl_close.show();
+                            if( _this.view_els.log_dl_view.isVisible()) _this.view_els.log_dl_view.hide();
+                        }
+                        else if( 'success' === response.status ){
+                            console.log('success');
+                            _this.view_els.log_dl_popup.showProgress({ type: 'top', position: 1, hide: false});
+                            if( _this.view_els.log_dl_stop.isVisible()) _this.view_els.log_dl_stop.hide();
+                            if( !_this.view_els.log_dl_close.isVisible()) _this.view_els.log_dl_close.show();
+
+                            if( response.log_id ) {
+                                console.log('Ready to open log');
+                                _this.drone_data.latest_log_id = response.log_id;
+                                if (!_this.view_els.log_dl_view.isVisible()) _this.view_els.log_dl_view.show();
+                            }
+                        }
+                        else {
+                            _this.view_els.log_dl_popup.hideProgress();
+                        }
+                    }
+
                 });
 
 
@@ -1174,9 +1219,18 @@ class DroneClient {
             ,rtl_btn: webix.$$('dvt:btn:rtl')
 
             // Всплывающие окна
+            ,action_menu_popup: view.$scope.action_menu
             ,takeoff_popup: view.$scope.takeoff_popup
             ,takeoff_alt: view.$scope.takeoff_popup.queryView({localId: 'fld:alt'})
             ,takeoff_confirm: view.$scope.takeoff_popup.queryView({localId: 'btn:takeoff'})
+            ,log_dl_popup: view.$scope.log_dl_popup
+            ,log_dl_msg: view.$scope.log_dl_popup.queryView({localId: 'tpl:log_msg'})
+            ,log_dl_stop: view.$scope.log_dl_popup.queryView({localId: 'btn:stop'})
+            ,log_dl_view: view.$scope.log_dl_popup.queryView({localId: 'btn:view'})
+            ,log_dl_close: view.$scope.log_dl_popup.queryView({localId: 'btn:close'})
+            ,logs_list_popup: view.$scope.logs_list_popup
+            ,logs_list_table: view.$scope.logs_list_popup.queryView({localId: 'dtb:logs_list'})
+            ,logs_list_erase: view.$scope.logs_list_popup.queryView({localId: 'btn:erase'})
 
             // Переключатель источника видео
             ,video_switch: view.$scope.fi_popup.queryView({localId: 'switch:video_src'})
@@ -1186,6 +1240,9 @@ class DroneClient {
             ,slider_servo6: view.$scope.action_menu.queryView({localId: 'sw:ser6'})
             ,sw_servo7: view.$scope.action_menu.queryView({localId: 'sw:ser7'})
             ,sw_servo8: view.$scope.action_menu.queryView({localId: 'sw:ser8'})
+
+            // Кнопка Board logs list
+            ,btn_logs_list: view.$scope.action_menu.queryView({localId: 'btn:get_logs_list'})
 
         };
         //
@@ -1464,7 +1521,7 @@ class DroneClient {
             });
         });
 
-        //
+        // Управление серво
         this.view_els.slider_servo5.attachEvent('onChange', value => {
             _this.command('set_servo', {servo: 5, value: value})
                 .then(function(res){
@@ -1716,6 +1773,63 @@ class DroneClient {
         // Джойстик
         joystick_left.setController( _this.drone.joystick.set_left );
         joystick_right.setController( _this.drone.joystick.set_right );
+
+        // Кнопка открыть список логов
+        _this.view_els.btn_logs_list.attachEvent('onItemClick', () => {
+            _this.view_els.logs_list_popup.show();
+            _this.view_els.action_menu_popup.hide();
+        });
+
+        // Кнопка очистить логи на борте
+        _this.view_els.logs_list_erase.attachEvent('onItemClick', () => {
+            webix.confirm({
+                ok: "ERASE",
+                cancel: "Cancel",
+                text: "Erase ALL board logs?",
+                callback: function (result) { //setting callback
+                    if( !result ) return;
+
+                    _this.RPC('eraseBoardLogs', {})
+                        .then(function(result){
+                            Message.info('Logs erased ' + result);
+                        })
+                        .catch(function(err){
+                            Message.error('Failed to erase logs ' + err);
+                        });
+
+                }
+            });
+        });
+
+        // Остановка загрузки лога
+        _this.view_els.log_dl_stop.attachEvent('onItemClick', () => {
+            webix.confirm({
+                ok: "STOP",
+                cancel: "Cancel",
+                text: "Stop downloading?",
+                callback: function (result) { //setting callback
+                    if( !result ) return;
+
+                    _this.socket.rpc('stopLogDL', {drone_id: _this.drone.id})
+                        .then(function(result){
+                            Message.info('Log downloading stopped');
+                            _this.view_els.log_dl_stop.hide();
+                            _this.view_els.log_dl_close.show();
+                            setTimeout( () => {
+                                _this.view_els.log_dl_popup.hide();
+                            }, 1000);
+                        })
+                        .catch(function(err){
+                            Message.error('Failed to stop ' + err);
+                        });
+                }
+            });
+        });
+
+        // Открыть лог
+        _this.view_els.log_dl_view.attachEvent('onItemClick', () => {
+            if( _this.drone_data.latest_log_id ) _this.view.$scope.show('log_view?id=' + _this.drone_data.latest_log_id);
+        });
 
         // переключатель видеоканалов
         _this.view_els.video_switch.attachEvent('onChange', value => {

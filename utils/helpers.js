@@ -18,6 +18,23 @@ const helpers = {
         return h + ':' + m.substr(-2) + ':' + s.substr(-2);
     }
 
+    ,readable_bytes: function(num_of_bytes=0){
+        if( num_of_bytes >= 100*1048576 ){ // >= 100 MB
+            return Math.round(num_of_bytes/1048576) + ' MB'; // 102 MB
+        }
+        if( num_of_bytes >= 1048576 ){ // >= 1 MB
+            return (num_of_bytes/1048576).toFixed(1) + ' MB'; // 5.6 MB
+        }
+        if( num_of_bytes >= 102400 ){ // >= 100 KB
+            return Math.round(num_of_bytes/1024) + ' KB'; // 101 KB
+        }
+        if( num_of_bytes >= 1024 ){ // >= 1 KB
+            return (num_of_bytes/1024).toFixed(1) + ' KB'; // 1.1 KB
+        }
+
+        return num_of_bytes + ' B'; // 100 B
+    }
+
     /*  utils/timeformat1  */
     // Делает читаемое время из обычного timestamp
     ,timeFormat2: function(timestamp){

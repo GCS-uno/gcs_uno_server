@@ -25,6 +25,8 @@ export default class LogView extends JetView {
         // drone_id передается в параметре открытия вида
         const log_id = this.getParam("id");
 
+        console.log('LOG ID', log_id);
+
         // Если параметра нет или он не найден в коллекции
         // Открыть список
         if( !log_id || !LogsCollection.getItem(log_id) ){

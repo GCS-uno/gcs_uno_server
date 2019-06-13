@@ -1178,6 +1178,33 @@ class Telem10Controller {
 }
 
 //
+// RPC контроллер
+class RPCController {
+    constructor(drone) {
+
+        this.methods = {};
+
+        console.log('RPC controller set ', RK.DRONE_RPC(drone.id));
+
+        drone.RPC.on(RK.DRONE_RPC(drone.id), (data, channel, response_callback) => {
+            console.log('RPC controller ', channel);
+            if( _.has(this.methods, data.method) ) this.methods[data.method](data, response_callback);
+            else response_callback('wrong method');
+
+            // response_callback(null, {'success': data});
+            // response_callback('error message');
+
+        });
+    }
+
+    setMethod(method, handler){
+        if( _.has(this.methods, method) ) Logger.error('RPC method overrite: ' + method);
+
+        this.methods[method] = handler;
+    }
+}
+
+//
 // Контроллер команд
 class CommandController {
     constructor(drone){
@@ -1256,6 +1283,16 @@ class CommandController {
                 })
                 .catch( response_callback );
         });
+        //
+        // Остановка загрузки логфайла
+        drone.RPC.on(RK.STOP_LOG_DL(drone.id), (data, channel, response_callback) => {
+
+            if( drone.log_download.stop() ) response_callback(null, 'success');
+            else response_callback('failed');
+
+        });
+
+
 
         // При удалении и остановке дрона
         drone.events.on('destroy', () => {
@@ -1980,12 +2017,16 @@ class LogDownloadController {
         const _this = this;
 
         let process_timeout = null;
+        let current_speed = 0; // Bytes/sec
+        let bytes_counter = 0;
+        let time_remaining = 0;
+        let last_speed_point = 0;
 
-        const report_process = (data) => {
+        this.report_process = (data) => {
             drone.send2io('report_log_dl', data);
         };
 
-        const report_process_throttled = _.throttle(report_process, 1000);
+        //const report_process_throttled = _.throttle(this_report_process, 1000);
 
         // Эта функция запускается, если нет сообщений с данными лога больше 500мс
         // Запускает запрос следующего блока или прекращает загрузку
@@ -1997,8 +2038,17 @@ class LogDownloadController {
 
             // Если таймаут срабатывал больше допустимого кол-ва раз
             if( this.reqs >= this.max_req_num ){
-                console.log('Max Req reached. Downloaded', this.log_buffer.length, 'of', this.last_log_size);
-                report_process({status: 'failed', msg: 'Failed to download log file'});
+                this.cancel_process();
+                Logger.error('Max Req reached. Downloaded', this.log_buffer.length, 'of', this.last_log_size);
+                this.report_process({status: 'failed', msg: 'Failed to download log file'});
+                return;
+            }
+
+            // Если дрон не онлайн
+            if( !drone.info.isOnline() ){
+                this.cancel_process();
+                Logger.error('Drone gone offline', this.log_buffer.length, 'of', this.last_log_size);
+                this.report_process({status: 'failed', msg: 'Failed: Drone gone offline'});
                 return;
             }
 
@@ -2009,8 +2059,6 @@ class LogDownloadController {
         };
 
         this.request_next_block = () => {
-            report_process_throttled({status: 'pend', msg: 'Downloaded ' + this.current_offset + ' of ' + this.last_log_size});
-
             this.drone.mavlink.sendMessage('LOG_REQUEST_DATA', {
                 target_system: this.drone.mavlink.sysid
                 ,target_component: this.drone.mavlink.compid
@@ -2018,6 +2066,7 @@ class LogDownloadController {
                 ,ofs: this.current_offset
                 ,count: this.block_size
             });
+            progress_check();
 
             console.log('Req', this.current_offset, 'of', this.last_log_size);
         };
@@ -2027,44 +2076,64 @@ class LogDownloadController {
                 process_timeout_callback();
             }, 500);
         };
-        this.cancel_process_timeout = () => {
+        this.cancel_process = (reset_buffer = true) => {
             if( process_timeout ) clearTimeout(process_timeout);
             this.download_in_progress = false;
+            if( reset_buffer ) {
+                this.log_buffer = '';
+                this.current_offset = 0;
+            }
         };
 
         this.download_complete = () => {
-            this.cancel_process_timeout();
+            this.cancel_process(false);
 
-            console.log('DL complete', this.log_buffer.length, 'of', this.last_log_size);
-            report_process({status: 'pend', msg: 'Download complete. Parsing...'});
+            if( !this.log_buffer.length ){
+                Logger.error('Empty log file buffer');
+                this.report_process({status: 'failed', msg: 'Failed to receive data'});
+                return;
+            }
 
-            // Записать в файл
+            Logger.info('Log download complete', this.log_buffer.length, 'of', this.last_log_size);
+            this.report_process({status: 'pars', msg: 'Download complete. Parsing...'});
+
+            // Придумать имя файла
             let file_name = helpers.now() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
 
+            // Записать в файл
             fs.writeFile('./../logs/' + file_name, this.log_buffer, 'binary', err => {
-                if( err ) return console.log('Failed to write file');
+                // reset buffers
+                this.cancel_process();
 
+                // Если ошибка
+                if( err ){
+                    this.report_process({status: 'failed', msg: 'Failed to save file'});
+                    Logger.error('Failed to write file');
+                    return;
+                }
+
+                // Попробовать распарсить файл
                 try {
-                    // Распарсить файл
+
                     const spawn = require("child_process").spawn;
 
                     const pyprocess = spawn('python',["./../utils/pymavlink/DFReader.py", './../logs/' + file_name] );
 
                     let parse_response = '';
-                    pyprocess.stdout.on('error', function() {
-                        console.log('ERROR');
+                    pyprocess.stdout.on('error', () => {
                         throw Error('pyprocess error');
                     } );
-                    pyprocess.stdout.on('data', function(data) {
+                    pyprocess.stdout.on('data', (data)=> {
                         parse_response += data;
                     } );
                     pyprocess.stdout.on('close', function() {
                         if( !parse_response.includes('OK') ){
-                            console.log('Failed to parse file');
+                            _this.report_process({status: 'failed', msg: 'Failed to parse file'});
+                            Logger.error('Failed to parse file');
                             return;
                         }
 
-                        console.log('JSON file saved');
+                        Logger.info('JSON file saved');
 
                         // Завести запись в БД
                         const new_log = new FlightLogModel({
@@ -2079,17 +2148,18 @@ class LogDownloadController {
                             // Save new log
                             new_log.save()
                                 .then( doc => {
+                                    _this.report_process({status: 'success', msg: 'Log file uploaded and parsed', log_id: doc.id});
                                     Logger.info('new log saved ' + doc.id);
-                                    report_process({status: 'success', msg: 'Log file uploaded and parsed'});
                                 })
                                 .catch( e => {
-                                    report_process({status: 'failed', msg: 'Failed to save to DB (0)'});
+                                    _this.report_process({status: 'failed', msg: 'Failed to save to DB (0)'});
                                     Logger.error(e);
                                 });
 
                         }
                         catch(e){
-                            report_process({status: 'failed', msg: 'Failed to save to DB (1)'});
+                            _this.report_process({status: 'failed', msg: 'Failed to save to DB (1)'});
+
                             // Response with error
                             if( 'ValidationError' === e.name ){
                                 Logger.warn('Log create validation failed');
@@ -2105,15 +2175,41 @@ class LogDownloadController {
 
                 }
                 catch (e) {
-                    console.log('Failed to process file', e);
-                    report_process({status: 'failed', msg: 'Failed to parse file'});
+                    _this.report_process({status: 'failed', msg: 'Failed to parse file'});
+                    Logger.error('Failed to process file', e);
                 }
 
             });
 
         };
 
-        // Очистить след если дрон дезактивирован
+        const progress_check = (count=0) => {
+            bytes_counter += count;
+
+            // посчитать скорость и оставшееся время
+            let period = helpers.now_ms()-last_speed_point;
+            if( period >= 1000 ){
+                current_speed = Math.round(bytes_counter/(period/1000));
+                time_remaining = Math.round((this.last_log_size-this.current_offset)/current_speed);
+                let progress_percent = Math.round((this.current_offset/this.last_log_size)*100);
+
+
+                last_speed_point = helpers.now_ms();
+                bytes_counter = 0;
+
+                _this.report_process({
+                    status: 'pend'
+                    ,c: {
+                         p: progress_percent
+                        ,s: helpers.readable_bytes(this.last_log_size)
+                        ,sp: helpers.readable_bytes(current_speed)
+                        ,tr: helpers.readable_seconds(time_remaining)
+                    }
+                });
+            }
+        };
+
+        // Автозагрузка последнего лог файла после дизарма
         drone.events.on('disarmed', () => { this.auto_download() });
 
         // Прочитать список логфайлов
@@ -2128,7 +2224,6 @@ class LogDownloadController {
                 this.last_log_size = parseInt(fields.size);
                 this.download_last();
             }
-
         });
 
         // Получение данных логфайла
@@ -2152,6 +2247,8 @@ class LogDownloadController {
                     // увеличить смещение
                     this.current_offset += count;
 
+                    progress_check(count);
+
                 }
 
                 // Если кусок < 90 байт, то он последний
@@ -2170,6 +2267,10 @@ class LogDownloadController {
             // сбросить таймаут процесса
             this.set_process_timeout();
 
+        });
+
+        drone.RPC2.setMethod('eraseBoardLogs', (data, response_handler) => {
+            response_handler(null, 'OK-7');
         });
 
     }
@@ -2193,7 +2294,7 @@ class LogDownloadController {
         // TODO проверить в БД на дубликат
 
         // Запросить скачивание логфайла
-        console.log('DOWNLOAD last log ', this.last_log_num);
+        Logger.info('DOWNLOAD last log ', this.last_log_num);
 
         this.log_buffer = '';
         this.current_offset = 0;
@@ -2214,6 +2315,13 @@ class LogDownloadController {
 
         // Запросить список логов, если есть что-то, то определить последний и загрузить в download_last()
         this.get_list();
+    }
+
+    // Остановка загрузки
+    stop(){
+        this.cancel_process();
+        this.report_process({status: 'stopped', msg: 'Downloading stopped'});
+        return true;
     }
 
 }
@@ -2373,8 +2481,6 @@ class DroneServer {
          */
         this.events = new EventEmitter();
 
-        this.RPC = new NodeRedisRpc({ emitter: this.redis.Pub, receiver: this.redis.Sub });
-
         this.data_keys = {
              // Переменные и каналы redis и IO
              MAVLINK_FROM_DRONE: RK.MAVLINK_FROM_DRONE(params.id) // MAVLink с борта
@@ -2405,6 +2511,10 @@ class DroneServer {
                 ,create_errors: 0
             }
         };
+
+        this.RPC = new NodeRedisRpc({ emitter: this.redis.Pub, receiver: this.redis.Sub });
+        this.RPC2 = new RPCController(this);
+
 
         // Инициализация MAVLink
         this.mavlink = new MAVLinkController(this);

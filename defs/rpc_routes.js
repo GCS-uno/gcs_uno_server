@@ -367,6 +367,26 @@ const RPC_routes = {
             .catch( reject );
     },
 
+    //
+    // Stop logs downloading
+    stopLogDL: function(data, resolve, reject){
+        RPC.req(RK.STOP_LOG_DL(data.drone_id), {})
+            .then( resolve )
+            .catch( reject );
+    },
+
+    droneRPC: function(data, resolve, reject){
+        if( !_.has(data, 'drone_id') || !_.has(data, 'method') ){
+            reject('Invalid request');
+            return;
+        }
+
+        if( !_.has(data, 'data') ) data.data = {};
+        console.log('RPC sent ', data.method, RK.DRONE_RPC(data.drone_id));
+        RPC.req(RK.DRONE_RPC(data.drone_id), {method: data.method, data: data.data})
+            .then( resolve )
+            .catch( reject );
+    },
 
 
     //
