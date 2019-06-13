@@ -234,6 +234,7 @@ class DroneClient {
             ,telem_10hz: new webix.DataRecord()
 
             ,modes: null
+            ,modes_names: {}
 
             // Коллекция статусов
             ,statuses_collection: new webix.DataCollection({
@@ -369,6 +370,9 @@ class DroneClient {
                  takeoff: 22
                 ,land: 11
                 ,rtl: 11
+                ,guided: 11
+                ,md_loiter: 11
+                ,cm_loiter: 17
                 ,switch_relay: 181
                 ,set_mode: 11 // MAV_CMD_DO_SET_MODE
                 ,arm: 400
@@ -853,9 +857,19 @@ class DroneClient {
 
                         _this.view_els.label_armed.setValue( t1.armed ? 'ARMED' : 'Disarmed' );
 
-                        webix.$$('dvt:rs:mode').blockEvent();
-                        if( webix.$$('dvt:rs:mode').isEnabled() ) webix.$$('dvt:rs:mode').setValue( t1.mode );
-                        webix.$$('dvt:rs:mode').unblockEvent();
+                        if( 'copter' === _this.drone_data.info.get('ac') ){
+                            let mode_name = 'Unknown';
+                            if( _this.drone_data.modes_names.hasOwnProperty(t1.mode) ) mode_name = _this.drone_data.modes_names[t1.mode];
+
+                            _this.view_els.label_mode.setValue('Mode: ' + mode_name);
+                        }
+                        else {
+                            if( _this.view_els.mode_select.isEnabled() ) {
+                                _this.view_els.mode_select.blockEvent();
+                                _this.view_els.mode_select.setValue( t1.mode );
+                                _this.view_els.mode_select.unblockEvent();
+                            }
+                        }
 
                         if( !_this.marker.getMap() ) _this.set_marker_map();
 
@@ -914,15 +928,16 @@ class DroneClient {
 
                     if( modes_list && modes_list.length ){
                         _this.drone_data.modes = [];
-                        for( let i = 0, k = modes_list.length; i < k; i++ ){
-                            _this.drone_data.modes.push({id: modes_list[i][0], value: modes_list[i][1]});
-                        }
+                        modes_list.forEach(function(item){
+                            _this.drone_data.modes.push({id: item[0], value: item[1]});
+                            _this.drone_data.modes_names[item[0]] = item[1];
+                        });
 
-                        if( _this.view_enabled && _this.view && webix.$$('dvt:rs:mode') ){
-                            webix.$$('dvt:rs:mode').getList().parse(_this.drone_data.modes);
-                            if( !webix.$$('dvt:rs:mode').isEnabled() ) webix.$$('dvt:rs:mode').enable();
+                        if( _this.view_enabled && _this.view && _this.view_els.mode_select ){
+                            _this.view_els.mode_select.getList().parse(_this.drone_data.modes);
+                            if( !_this.view_els.mode_select.isEnabled() ) _this.view_els.mode_select.enable();
                             if( _this.drone_data.telem_1hz.getValues().mode !== null ){
-                                webix.$$('dvt:rs:mode').setValue(_this.drone_data.telem_1hz.getValues().mode);
+                                _this.view_els.mode_select.setValue(_this.drone_data.telem_1hz.getValues().mode);
                             }
                         }
                     }
@@ -941,9 +956,18 @@ class DroneClient {
 
                 //
                 // Загрузка бортовой миссии
+                _this.socket.off('board_mission_' + _this.drone.id);
                 _this.socket.on('board_mission_' + _this.drone.id, (response) => {
                     if( 'success' === response.status ) _this.mission.load(response.mission_data);
                 });
+
+                //
+                // Статус загрузки логфайла
+                _this.socket.off('report_log_dl_' + _this.drone.id);
+                _this.socket.on('report_log_dl_' + _this.drone.id, (response) => {
+                    console.log(response);
+                });
+
 
                 //
                 // Принудительно поставить оффлайн, если не было сообщений больше 4 секунд
@@ -1003,24 +1027,36 @@ class DroneClient {
 
             webix.$$('dvt:tpl:offline').hide();
 
-            webix.$$('dvt:icon:statuses').show();
-            webix.$$('dvt:rs:mode').show();
+            // Подготовка элементов для дрона
+            if( _this.drone_data.info.get('ac') === 'copter' ){
+                _this.view_els.label_mode.show();
+                _this.view_els.mode_select.hide();
+                _this.view_els.btn_guided.show();
+                _this.view_els.takeoff_btn.show();
+                _this.view_els.land_btn.show();
+                _this.view_els.rtl_btn.show();
+                //_this.view_els.btn_md_loiter.show();
+                _this.view_els.btn_cm_loiter.show();
+            }
+            // Для остальных
+            else {
+                _this.view_els.label_mode.hide();
+                _this.view_els.mode_select.show();
+                _this.view_els.btn_guided.hide();
+                _this.view_els.takeoff_btn.hide();
+                _this.view_els.land_btn.hide();
+                _this.view_els.rtl_btn.hide();
+                _this.view_els.btn_md_loiter.hide();
+                _this.view_els.btn_cm_loiter.hide();
+            }
+
+            // Общие
             _this.view_els.label_armed.show();
-
             _this.view_els.telem_top.show({y:60, x: 50});
-
-            webix.$$('dvt:btn:takeoff').show();
-            webix.$$('dvt:btn:land').show();
-            webix.$$('dvt:btn:rtl').show();
-
+            webix.$$('dvt:icon:statuses').show();
             webix.$$('dvt:icon:actions').show();
 
-            // Показать джойстик если он включен в настройках
-            //if( !!_this.drone_data.params.joystick_enable ){
-            //    let joystick_view = _this.view.$scope.fi_popup.queryView({localId: 'cont:joystick1'});
-            //if( joystick_view ) joystick_view.show();
-            //}
-
+            //
             // Начало отправки heartbeat. Остановка по закрытию панели управления
             _this.heartbeat.start();
 
@@ -1029,7 +1065,9 @@ class DroneClient {
 
             // След
             _this.flight_path.show();
+            // Полетный план
             _this.mission.show();
+            // Путь назначения
             _this.destination_path.show();
 
         };
@@ -1060,21 +1098,25 @@ class DroneClient {
             _this.view.disable();
             _this.view.$scope.fi_popup.disable();
 
-            webix.$$('dvt:icon:info').show();
-            setTimeout(function(){webix.$$('dvt:icon:info').callEvent('onItemClick')},500);
-
-            webix.$$('dvt:icon:statuses').hide();
-            webix.$$('dvt:rs:mode').hide();
+            // Элементы управления
             _this.view_els.label_armed.hide();
             _this.view_els.telem_top.hide();
             _this.view_els.arm_btn.hide();
             _this.view_els.disarm_btn.hide();
-            webix.$$('dvt:btn:takeoff').hide();
-            webix.$$('dvt:btn:land').hide();
-            webix.$$('dvt:btn:rtl').hide();
+            _this.view_els.label_mode.hide();
+            _this.view_els.mode_select.hide();
+            _this.view_els.btn_guided.hide();
+            _this.view_els.takeoff_btn.hide();
+            _this.view_els.land_btn.hide();
+            _this.view_els.rtl_btn.hide();
 
-            webix.$$('dvt:icon:actions').hide();
+            // Вспомогательные окна
             _this.view_els.takeoff_popup.hide();
+
+            webix.$$('dvt:icon:info').show();
+            webix.$$('dvt:icon:statuses').show();
+            webix.$$('dvt:icon:actions').hide();
+
 
             // Шаблон 'Drone offline'
 
@@ -1112,14 +1154,21 @@ class DroneClient {
              horizon: view.$scope.fi_popup.queryView({localId: 'fi:horizon'})
             ,compass: view.$scope.fi_popup.queryView({localId: 'fi:compass'})
             ,label_armed: webix.$$('dvt:lbl:armed')
+            ,label_mode: webix.$$('dvt:lbl:mode')
             ,telem_top: view.$scope.telemetry_popup.queryView({localId:'tpl:telem_top'}) // Шаблон с телеметрией наверху
             ,map: view.$scope.$$('map:drone').getMap() // Объект карты Google
+
+            // Меню и шаблон режимов
+            ,mode_select: webix.$$('dvt:rs:mode')
 
             // Кнопки ARM, DISARM
             ,arm_btn: webix.$$('dvt:btn:arm')
             ,disarm_btn: webix.$$('dvt:btn:disarm')
 
             // Кнопки управления
+            ,btn_guided: webix.$$('dvt:btn:md_guided')
+            ,btn_md_loiter: webix.$$('dvt:btn:md_loiter')
+            ,btn_cm_loiter: webix.$$('dvt:btn:cm_loiter')
             ,takeoff_btn: webix.$$('dvt:btn:takeoff')
             ,land_btn: webix.$$('dvt:btn:land')
             ,rtl_btn: webix.$$('dvt:btn:rtl')
@@ -1129,7 +1178,14 @@ class DroneClient {
             ,takeoff_alt: view.$scope.takeoff_popup.queryView({localId: 'fld:alt'})
             ,takeoff_confirm: view.$scope.takeoff_popup.queryView({localId: 'btn:takeoff'})
 
+            // Переключатель источника видео
             ,video_switch: view.$scope.fi_popup.queryView({localId: 'switch:video_src'})
+
+            // Серво
+            ,slider_servo5: view.$scope.action_menu.queryView({localId: 'sw:ser5'})
+            ,slider_servo6: view.$scope.action_menu.queryView({localId: 'sw:ser6'})
+            ,sw_servo7: view.$scope.action_menu.queryView({localId: 'sw:ser7'})
+            ,sw_servo8: view.$scope.action_menu.queryView({localId: 'sw:ser8'})
 
         };
         //
@@ -1141,9 +1197,6 @@ class DroneClient {
 
         // Список статусов
         const statuses_list = view.$scope.statuses_popup.queryView({localId: 'list:statuses'});
-
-        // Меню выбора полетного режима
-        const mode_select = webix.$$('dvt:rs:mode');
 
         // Кнопка загрузки миссии с борта
         const get_mission_button = view.$scope.action_menu.queryView({localId: 'btn:get_mission'});
@@ -1173,7 +1226,7 @@ class DroneClient {
         // Если установлен тип и доступны режимы
         if( _this.drone_data.modes && _this.drone_data.modes.length ){
             // Загрузим их в меню
-            mode_select.getList().parse(_this.drone_data.modes);
+            _this.view_els.mode_select.getList().parse(_this.drone_data.modes);
         }
 
 
@@ -1210,6 +1263,45 @@ class DroneClient {
         //
         //  Обработка событий
         //
+
+        // Кнопка Mode Guided
+        _this.view_els.btn_guided.attachEvent('onItemClick', () => {
+
+            _this.command('md_guided', {})
+                .then( result => {
+                    Message.info('Mode GUIDED');
+                })
+                .catch( err => {
+                    Message.error('Failed to set mode: ' + err);
+                });
+
+        });
+
+        // Кнопка Mode Loiter
+        _this.view_els.btn_md_loiter.attachEvent('onItemClick', () => {
+
+            _this.command('md_loiter', {})
+                .then( result => {
+                    Message.info('Mode LOITER');
+                })
+                .catch( err => {
+                    Message.error('Failed to set mode: ' + err);
+                });
+
+        });
+
+        // Кнопка Command Loiter Unlimited
+        _this.view_els.btn_cm_loiter.attachEvent('onItemClick', () => {
+
+            _this.command('cm_loiter', {})
+                .then( result => {
+                    Message.info('Command set');
+                })
+                .catch( err => {
+                    Message.error('Failed to set mode: ' + err);
+                });
+
+        });
 
         // Кнопка Взлет
         _this.view_els.takeoff_btn.attachEvent('onItemClick', () => {
@@ -1260,27 +1352,27 @@ class DroneClient {
 
 
         // Переключение полетных режимов
-        mode_select.attachEvent('onChange', function(new_value, old_value){
-            mode_select.disable();
+        _this.view_els.mode_select.attachEvent('onChange', function(new_value, old_value){
+            _this.view_els.mode_select.disable();
 
             _this.command('set_mode', {
                 mode: new_value
             }).then(function(res){
 
                 setTimeout(function() {
-                    mode_select.enable();
+                    _this.view_els.mode_select.enable();
                 }, 1100);
 
             }).catch(function(res){
 
                 Message.error('Failed to set mode: ' + res);
 
-                mode_select.blockEvent();
-                mode_select.setValue(old_value);
-                mode_select.unblockEvent();
+                _this.view_els.mode_select.blockEvent();
+                _this.view_els.mode_select.setValue(old_value);
+                _this.view_els.mode_select.unblockEvent();
 
                 setTimeout(function() {
-                    mode_select.enable();
+                    _this.view_els.mode_select.enable();
                 }, 1500);
 
             });
@@ -1370,6 +1462,44 @@ class DroneClient {
 
                 get_mission_button.enable();
             });
+        });
+
+        //
+        this.view_els.slider_servo5.attachEvent('onChange', value => {
+            _this.command('set_servo', {servo: 5, value: value})
+                .then(function(res){
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to set servo: ' + err);
+                });
+        });
+        this.view_els.slider_servo6.attachEvent('onChange', value => {
+            _this.command('set_servo', {servo: 6, value: value})
+                .then(function(res){
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to set servo: ' + err);
+                });
+        });
+        this.view_els.sw_servo7.attachEvent('onChange', value => {
+            _this.command('set_servo', {servo: 7, sw: value})
+                .then(function(res){
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to set servo: ' + err);
+                });
+        });
+        this.view_els.sw_servo8.attachEvent('onChange', value => {
+            _this.command('set_servo', {servo: 8, sw: value})
+                .then(function(res){
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to set servo: ' + err);
+                });
         });
 
         // Переключатель Реле 1

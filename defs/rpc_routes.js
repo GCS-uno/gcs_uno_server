@@ -816,7 +816,9 @@ const RPC_routes = {
 
                         info.log_time = Math.round((end_time-start_time)/1000000);
 
-                        /* Распечатать список групп и полей
+                        console.log('S', start_time, 'E', end_time, 'L', (end_time-start_time));
+
+                        //* Распечатать список групп и полей
                         _.mapKeys(m_list, (value, key) => {
                             console.log(key, value.length);
                             //console.log(key);
@@ -865,6 +867,9 @@ const RPC_routes = {
                                 prev_rec_point_5hz = rec_point_5hz;
                                 prev_rec_point_1hz = rec_point_1hz;
                             });
+                        }
+                        else {
+                            console.log('No GPS');
                         }
 
                         //

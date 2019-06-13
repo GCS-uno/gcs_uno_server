@@ -20,7 +20,7 @@ export default class DroneView extends JetView {
         this.telemetry_popup = this.ui(telemetry_popup);
         this.takeoff_popup = this.ui(takeoff_popup);
 
-        top_controls_id = webix.$$('top_view_controls').addView(view_controls);
+        top_controls_id = webix.$$('top_view_controls').addView(top_controls);
 
         webix.TooltipControl.addTooltip(this.telemetry_popup.$view);
 
@@ -89,10 +89,23 @@ export default class DroneView extends JetView {
 const action_menu_popup = {
     view: 'popup'
     ,id: 'drone_view_popup_action_menu'
+    ,zIndex: 6
     ,body: {
         width:300
         ,rows: [
+            // Серво
             {
+                padding: 20
+                ,rows: [
+                     { view: "slider", value: 0, label: "Servo 5",localId: 'sw:ser5', min: 0, max: 20, title:webix.template("#value#") }
+                    ,{ view: "slider", value: 0, label: "Servo 6",localId: 'sw:ser6', min: 0, max: 20, title:webix.template("#value#") }
+                    ,{ view: "switch", value: 0, label: "Servo 7",localId: 'sw:ser7' }
+                    ,{ view: "switch", value: 0, label: "Servo 8",localId: 'sw:ser8' }
+                ]
+            }
+
+            // Реле
+            ,{
                 padding: 20
                 ,rows: [
                     { view: "switch", value: 0, label: "Relay 1",localId: 'sw:rel1' }
@@ -102,6 +115,7 @@ const action_menu_popup = {
                 ]
             }
 
+            // Кнопка Загрузить полетный план с борта
             ,{
                 padding: 20
                 ,cols: [
@@ -114,6 +128,7 @@ const action_menu_popup = {
                     }
                 ]
             }
+
             ,{}
         ]
 
@@ -225,6 +240,7 @@ const takeoff_popup = {
     ,head: false
     ,borderless: true
     ,position: 'center'
+    ,zIndex: 2000
     ,body: {
         padding: 20
         ,width: 300
@@ -247,23 +263,20 @@ const takeoff_popup = {
 
 //
 // Кнопки для верхней панели
-const view_controls = {
+const top_controls = {
     cols: [
         //,{ view: 'button', type: 'iconButton', icon: 'mdi mdi-settings', label: 'Setup your drone', width: 200, id: 'dvt:btn:setup', css: 'button_primary button_raised', hidden: true}
 
         // Кнопка с информацией
         { view: 'icon', id: 'dvt:icon:info', icon: 'mdi mdi-information', popup: 'drone_view_popup_info', tooltip: 'Drone info' }
+
         // Drone offline label
         ,{view: 'label', id: 'dvt:tpl:offline', label: 'drone offline', borderless: true, hidden: true, width: 150, css: "header_label" }
+
         // Кнопка со списком статусов
         ,{ view: 'icon', id: 'dvt:icon:statuses', icon: 'mdi mdi-bullhorn', popup: 'drone_view_popup_statuses', hidden: true, tooltip: 'Statuses' }
         ,{ width: 20 }
-        // Label armed / disarmed
-        ,{view: 'label', label: '', width: 80, id: 'dvt:lbl:armed', hidden: true }
-        // ARM / DISARM кнопки
-        ,{view: 'button', value: 'ARM', id: 'dvt:btn:arm', width: 100, hidden: true, tooltip: 'Activate motors' }
-        ,{view: 'button', value: 'DISARM', id: 'dvt:btn:disarm', type: 'danger', width: 100, hidden: true, tooltip: 'Deactivate motors'}
-        ,{ width: 20 }
+
         // Flight mode set status
         ,{
             view: 'richselect'
@@ -271,8 +284,55 @@ const view_controls = {
             ,labelWidth: 0
             ,width: 200
             ,options: []
-            , hidden: true
+            ,hidden: true
             ,tooltip: 'Set flight mode'
+            ,zIndex: 1500
+        }
+        // Название полетного режима для коптера
+        ,{view: 'label', label: 'Mode: ', width: 150, id: 'dvt:lbl:mode', hidden: true }
+        ,{ width: 20 }
+
+        // Label armed / disarmed
+        ,{view: 'label', label: '', width: 80, id: 'dvt:lbl:armed', hidden: true }
+
+        // ARM / DISARM кнопки
+        ,{view: 'button', value: 'ARM', id: 'dvt:btn:arm', width: 100, hidden: true, tooltip: 'Activate motors' }
+        ,{view: 'button', value: 'DISARM', id: 'dvt:btn:disarm', type: 'danger', width: 100, hidden: true, tooltip: 'Deactivate motors'}
+
+        // Кнопка Mode Guided
+        ,{
+            view: 'button'
+            ,type: 'iconButton'
+            ,id: 'dvt:btn:md_guided'
+            ,label: 'Guided'
+            ,icon: 'mdi mdi-ship-wheel'
+            ,tooltip: 'Switch to GUIDED mode'
+            ,autowidth: true
+            ,hidden: true
+        }
+
+        // Кнопка Mode Loiter
+        ,{
+            view: 'button'
+            ,type: 'iconButton'
+            ,id: 'dvt:btn:md_loiter'
+            ,label: 'MD LOIT'
+            ,icon: 'mdi mdi-alert'
+            ,tooltip: 'DANGER!! Do not click if you have no RC! For testing only'
+            ,autowidth: true
+            ,hidden: true
+        }
+
+        // Кнопка команды Loiter unlimited
+        ,{
+            view: 'button'
+            ,type: 'iconButton'
+            ,id: 'dvt:btn:cm_loiter'
+            ,label: 'CM LOIT'
+            ,icon: 'mdi mdi-ship-wheel'
+            ,tooltip: 'Send Loiter Unlimited command'
+            ,autowidth: true
+            ,hidden: true
         }
 
         // Кнопки взлет, посадка, RTL
@@ -333,11 +393,12 @@ const map_options = {
     }
 };
 const map_config = {
-    view:"google-map",
-    localId: "map:drone",
-    zoom: 10,
-    mapType: 'SATELLITE',
-    center:[ 55, 37 ]
+    view:"google-map"
+    ,localId: "map:drone"
+    ,zoom: 10
+    ,mapType: 'SATELLITE'
+    ,center:[ 55, 37 ]
+    ,zIndex: 1
 };
 
 // Панель с телеметрией сверху карты
@@ -426,6 +487,7 @@ const fi_popup = {
     ,head: false
     ,borderless: true
     ,disabled: true
+    ,zIndex: 5
     ,body: {
         width:520
         ,borderless: true

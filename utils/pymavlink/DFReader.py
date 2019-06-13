@@ -1111,10 +1111,14 @@ if __name__ == "__main__":
         else:
             fields = m.to_dict()
             records.append(fields)
+            #print(fields)
 
     with open(filename + '.json', 'w') as outfile:
         json.dump(records, outfile)
 
-    print('OK')
+    if( len(records) > 10 ):
+        print('OK')
+    else:
+        print('ERROR')
 
     exit(0)

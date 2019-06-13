@@ -121,7 +121,7 @@ mavlink.prototype.parseV1 = function(message_buffer){
 
         // Возврат расшифрованного сообщения
         const result = {
-            id: decoded_message.id
+            id: decoded_message.msgID
             ,name: decoded_message.name
             ,fields: {}
             ,v: 1 // mavlink version
@@ -222,11 +222,12 @@ mavlink.prototype.parseV2 = function(message_buffer){
 
         // Возврат расшифрованного сообщения
         const result = {
-            id: decoded_message.id
+             msgID: decoded_message.msgID
             ,name: decoded_message.name
             ,fields: {}
             ,v: 2 // mavlink version
         };
+        //console.log(result);
         _.map(decoded_message.fieldnames, function(fn){ if( _.has(decoded_message, fn) ) result.fields[fn] = decoded_message[fn];});
 
         this.events.emit('message', result);
@@ -362,7 +363,6 @@ mavlink.prototype.createMessage = function(msg_name, fields, callback) {
             // Присвоим поля сообщения объекту
             _.mapKeys(fields, function(value, key) { msg[key] = value });
 
-
             let message_buffer = Buffer.from(msg.pack({seq: this.send_sequence, srcSystem: this.gcs_sysid, srcComponent: this.gcs_compid}));
 
             callback(null, message_buffer);
@@ -380,6 +380,7 @@ mavlink.prototype.createMessage = function(msg_name, fields, callback) {
 };
 
 mavlink.prototype.sendMessage = function(msg_name, fields){
+    //console.log('send', fields);
     this.createMessage(msg_name, fields, this.sender);
 };
 

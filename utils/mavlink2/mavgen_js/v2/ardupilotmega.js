@@ -70,6 +70,7 @@ mavlink2.message = function() {};
 mavlink2.message.prototype.set = function(args) {
     _.each(this.fieldnames, function(e, i) {
         this[e] = args[i];
+        //if( e === 'id' ) console.log('ID', args[i]);
     }, this);
 };
 
@@ -78,7 +79,7 @@ mavlink2.message.prototype.set = function(args) {
 mavlink2.message.prototype.pack = function(mav, crc_extra, payload) {
 
     this.payload = payload;
-    this.header = new mavlink2.header(this.id, payload.length, mav.seq, mav.srcSystem, mav.srcComponent);
+    this.header = new mavlink2.header(this.msgID, payload.length, mav.seq, mav.srcSystem, mav.srcComponent);
     this.msgbuf = this.header.pack().concat(payload);
     var crc = mavlink2.x25Crc(this.msgbuf.slice(1));
 
@@ -2181,7 +2182,7 @@ easier to debug the calibration process.
 mavlink2.messages.sensor_offsets = function(mag_ofs_x, mag_ofs_y, mag_ofs_z, mag_declination, raw_press, raw_temp, gyro_cal_x, gyro_cal_y, gyro_cal_z, accel_cal_x, accel_cal_y, accel_cal_z) {
 
     this.format = '<fiiffffffhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SENSOR_OFFSETS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SENSOR_OFFSETS;
     this.order_map = [9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 134;
     this.name = 'SENSOR_OFFSETS';
@@ -2212,7 +2213,7 @@ Set the magnetometer offsets
 mavlink2.messages.set_mag_offsets = function(target_system, target_component, mag_ofs_x, mag_ofs_y, mag_ofs_z) {
 
     this.format = '<hhhBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_MAG_OFFSETS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_MAG_OFFSETS;
     this.order_map = [3, 4, 0, 1, 2];
     this.crc_extra = 219;
     this.name = 'SET_MAG_OFFSETS';
@@ -2241,7 +2242,7 @@ State of APM memory.
 mavlink2.messages.meminfo = function(brkval, freemem, freemem32) {
 
     this.format = '<HHI';
-    this.id = mavlink2.MAVLINK_MSG_ID_MEMINFO;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MEMINFO;
     this.order_map = [0, 1, 2];
     this.crc_extra = 208;
     this.name = 'MEMINFO';
@@ -2273,7 +2274,7 @@ Raw ADC output.
 mavlink2.messages.ap_adc = function(adc1, adc2, adc3, adc4, adc5, adc6) {
 
     this.format = '<HHHHHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_AP_ADC;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AP_ADC;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 188;
     this.name = 'AP_ADC';
@@ -2310,7 +2311,7 @@ Configure on-board Camera Control System.
 mavlink2.messages.digicam_configure = function(target_system, target_component, mode, shutter_speed, aperture, iso, exposure_type, command_id, engine_cut_off, extra_param, extra_value) {
 
     this.format = '<fHBBBBBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DIGICAM_CONFIGURE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DIGICAM_CONFIGURE;
     this.order_map = [2, 3, 4, 1, 5, 6, 7, 8, 9, 10, 0];
     this.crc_extra = 84;
     this.name = 'DIGICAM_CONFIGURE';
@@ -2346,7 +2347,7 @@ Control on-board Camera Control System to take shots.
 mavlink2.messages.digicam_control = function(target_system, target_component, session, zoom_pos, zoom_step, focus_lock, shot, command_id, extra_param, extra_value) {
 
     this.format = '<fBBBBbBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DIGICAM_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DIGICAM_CONTROL;
     this.order_map = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
     this.crc_extra = 22;
     this.name = 'DIGICAM_CONTROL';
@@ -2378,7 +2379,7 @@ Message to configure a camera mount, directional antenna, etc.
 mavlink2.messages.mount_configure = function(target_system, target_component, mount_mode, stab_roll, stab_pitch, stab_yaw) {
 
     this.format = '<BBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MOUNT_CONFIGURE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MOUNT_CONFIGURE;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 19;
     this.name = 'MOUNT_CONFIGURE';
@@ -2410,7 +2411,7 @@ Message to control a camera mount, directional antenna, etc.
 mavlink2.messages.mount_control = function(target_system, target_component, input_a, input_b, input_c, save_position) {
 
     this.format = '<iiiBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MOUNT_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MOUNT_CONTROL;
     this.order_map = [3, 4, 0, 1, 2, 5];
     this.crc_extra = 21;
     this.name = 'MOUNT_CONTROL';
@@ -2442,7 +2443,7 @@ mount.
 mavlink2.messages.mount_status = function(target_system, target_component, pointing_a, pointing_b, pointing_c) {
 
     this.format = '<iiiBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MOUNT_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MOUNT_STATUS;
     this.order_map = [3, 4, 0, 1, 2];
     this.crc_extra = 134;
     this.name = 'MOUNT_STATUS';
@@ -2475,7 +2476,7 @@ return a point from MAV -> GCS.
 mavlink2.messages.fence_point = function(target_system, target_component, idx, count, lat, lng) {
 
     this.format = '<ffBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_FENCE_POINT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FENCE_POINT;
     this.order_map = [2, 3, 4, 5, 0, 1];
     this.crc_extra = 78;
     this.name = 'FENCE_POINT';
@@ -2504,7 +2505,7 @@ Request a current fence point from MAV.
 mavlink2.messages.fence_fetch_point = function(target_system, target_component, idx) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_FENCE_FETCH_POINT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FENCE_FETCH_POINT;
     this.order_map = [0, 1, 2];
     this.crc_extra = 68;
     this.name = 'FENCE_FETCH_POINT';
@@ -2535,7 +2536,7 @@ enabled.
 mavlink2.messages.fence_status = function(breach_status, breach_count, breach_type, breach_time) {
 
     this.format = '<IHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_FENCE_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FENCE_STATUS;
     this.order_map = [2, 1, 3, 0];
     this.crc_extra = 189;
     this.name = 'FENCE_STATUS';
@@ -2568,7 +2569,7 @@ Status of DCM attitude estimator.
 mavlink2.messages.ahrs = function(omegaIx, omegaIy, omegaIz, accel_weight, renorm_val, error_rp, error_yaw) {
 
     this.format = '<fffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_AHRS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AHRS;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 127;
     this.name = 'AHRS';
@@ -2605,7 +2606,7 @@ Status of simulation environment, if used.
 mavlink2.messages.simstate = function(roll, pitch, yaw, xacc, yacc, zacc, xgyro, ygyro, zgyro, lat, lng) {
 
     this.format = '<fffffffffii';
-    this.id = mavlink2.MAVLINK_MSG_ID_SIMSTATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SIMSTATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.crc_extra = 154;
     this.name = 'SIMSTATE';
@@ -2633,7 +2634,7 @@ Status of key hardware.
 mavlink2.messages.hwstatus = function(Vcc, I2Cerr) {
 
     this.format = '<HB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HWSTATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HWSTATUS;
     this.order_map = [0, 1];
     this.crc_extra = 21;
     this.name = 'HWSTATUS';
@@ -2666,7 +2667,7 @@ Status generated by radio.
 mavlink2.messages.radio = function(rssi, remrssi, txbuf, noise, remnoise, rxerrors, fixed) {
 
     this.format = '<HHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RADIO;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RADIO;
     this.order_map = [2, 3, 4, 5, 6, 0, 1];
     this.crc_extra = 21;
     this.name = 'RADIO';
@@ -2702,7 +2703,7 @@ enabled.
 mavlink2.messages.limits_status = function(limits_state, last_trigger, last_action, last_recovery, last_clear, breach_count, mods_enabled, mods_required, mods_triggered) {
 
     this.format = '<IIIIHBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LIMITS_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LIMITS_STATUS;
     this.order_map = [5, 0, 1, 2, 3, 4, 6, 7, 8];
     this.crc_extra = 144;
     this.name = 'LIMITS_STATUS';
@@ -2731,7 +2732,7 @@ Wind estimation.
 mavlink2.messages.wind = function(direction, speed, speed_z) {
 
     this.format = '<fff';
-    this.id = mavlink2.MAVLINK_MSG_ID_WIND;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_WIND;
     this.order_map = [0, 1, 2];
     this.crc_extra = 1;
     this.name = 'WIND';
@@ -2760,7 +2761,7 @@ Data packet, size 16.
 mavlink2.messages.data16 = function(type, len, data) {
 
     this.format = '<BB16s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA16;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA16;
     this.order_map = [0, 1, 2];
     this.crc_extra = 234;
     this.name = 'DATA16';
@@ -2789,7 +2790,7 @@ Data packet, size 32.
 mavlink2.messages.data32 = function(type, len, data) {
 
     this.format = '<BB32s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA32;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA32;
     this.order_map = [0, 1, 2];
     this.crc_extra = 73;
     this.name = 'DATA32';
@@ -2818,7 +2819,7 @@ Data packet, size 64.
 mavlink2.messages.data64 = function(type, len, data) {
 
     this.format = '<BB64s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA64;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA64;
     this.order_map = [0, 1, 2];
     this.crc_extra = 181;
     this.name = 'DATA64';
@@ -2847,7 +2848,7 @@ Data packet, size 96.
 mavlink2.messages.data96 = function(type, len, data) {
 
     this.format = '<BB96s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA96;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA96;
     this.order_map = [0, 1, 2];
     this.crc_extra = 22;
     this.name = 'DATA96';
@@ -2875,7 +2876,7 @@ Rangefinder reporting.
 mavlink2.messages.rangefinder = function(distance, voltage) {
 
     this.format = '<ff';
-    this.id = mavlink2.MAVLINK_MSG_ID_RANGEFINDER;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RANGEFINDER;
     this.order_map = [0, 1];
     this.crc_extra = 83;
     this.name = 'RANGEFINDER';
@@ -2913,7 +2914,7 @@ Airspeed auto-calibration.
 mavlink2.messages.airspeed_autocal = function(vx, vy, vz, diff_pressure, EAS2TAS, ratio, state_x, state_y, state_z, Pax, Pby, Pcz) {
 
     this.format = '<ffffffffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_AIRSPEED_AUTOCAL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AIRSPEED_AUTOCAL;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 167;
     this.name = 'AIRSPEED_AUTOCAL';
@@ -2950,7 +2951,7 @@ return a point from MAV -> GCS.
 mavlink2.messages.rally_point = function(target_system, target_component, idx, count, lat, lng, alt, break_alt, land_dir, flags) {
 
     this.format = '<iihhHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RALLY_POINT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RALLY_POINT;
     this.order_map = [5, 6, 7, 8, 0, 1, 2, 3, 4, 9];
     this.crc_extra = 138;
     this.name = 'RALLY_POINT';
@@ -2980,7 +2981,7 @@ RALLY_POINT message. MAV should not respond if the request is invalid.
 mavlink2.messages.rally_fetch_point = function(target_system, target_component, idx) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RALLY_FETCH_POINT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RALLY_FETCH_POINT;
     this.order_map = [0, 1, 2];
     this.crc_extra = 234;
     this.name = 'RALLY_FETCH_POINT';
@@ -3012,7 +3013,7 @@ Status of compassmot calibration.
 mavlink2.messages.compassmot_status = function(throttle, current, interference, CompensationX, CompensationY, CompensationZ) {
 
     this.format = '<ffffHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_COMPASSMOT_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_COMPASSMOT_STATUS;
     this.order_map = [4, 0, 5, 1, 2, 3];
     this.crc_extra = 240;
     this.name = 'COMPASSMOT_STATUS';
@@ -3044,7 +3045,7 @@ Status of secondary AHRS filter if available.
 mavlink2.messages.ahrs2 = function(roll, pitch, yaw, altitude, lat, lng) {
 
     this.format = '<ffffii';
-    this.id = mavlink2.MAVLINK_MSG_ID_AHRS2;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AHRS2;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 47;
     this.name = 'AHRS2';
@@ -3079,7 +3080,7 @@ Camera Event.
 mavlink2.messages.camera_status = function(time_usec, target_system, cam_idx, img_idx, event_id, p1, p2, p3, p4) {
 
     this.format = '<QffffHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_STATUS;
     this.order_map = [0, 6, 7, 5, 8, 1, 2, 3, 4];
     this.crc_extra = 189;
     this.name = 'CAMERA_STATUS';
@@ -3119,7 +3120,7 @@ Camera Capture Feedback.
 mavlink2.messages.camera_feedback = function(time_usec, target_system, cam_idx, img_idx, lat, lng, alt_msl, alt_rel, roll, pitch, yaw, foc_len, flags, completed_captures) {
 
     this.format = '<QiiffffffHBBBH';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_FEEDBACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_FEEDBACK;
     this.order_map = [0, 10, 11, 9, 1, 2, 3, 4, 5, 6, 7, 8, 12, 13];
     this.crc_extra = 52;
     this.name = 'CAMERA_FEEDBACK';
@@ -3147,7 +3148,7 @@ mavlink2.messages.camera_feedback.prototype.pack = function(mav) {
 mavlink2.messages.battery2 = function(voltage, current_battery) {
 
     this.format = '<Hh';
-    this.id = mavlink2.MAVLINK_MSG_ID_BATTERY2;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_BATTERY2;
     this.order_map = [0, 1];
     this.crc_extra = 174;
     this.name = 'BATTERY2';
@@ -3184,7 +3185,7 @@ group (Ali and Sean).
 mavlink2.messages.ahrs3 = function(roll, pitch, yaw, altitude, lat, lng, v1, v2, v3, v4) {
 
     this.format = '<ffffiiffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_AHRS3;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AHRS3;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 229;
     this.name = 'AHRS3';
@@ -3212,7 +3213,7 @@ Request the autopilot version from the system/component.
 mavlink2.messages.autopilot_version_request = function(target_system, target_component) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_AUTOPILOT_VERSION_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AUTOPILOT_VERSION_REQUEST;
     this.order_map = [0, 1];
     this.crc_extra = 85;
     this.name = 'AUTOPILOT_VERSION_REQUEST';
@@ -3242,7 +3243,7 @@ Send a block of log data to remote location.
 mavlink2.messages.remote_log_data_block = function(target_system, target_component, seqno, data) {
 
     this.format = '<IBB200s';
-    this.id = mavlink2.MAVLINK_MSG_ID_REMOTE_LOG_DATA_BLOCK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_REMOTE_LOG_DATA_BLOCK;
     this.order_map = [1, 2, 0, 3];
     this.crc_extra = 159;
     this.name = 'REMOTE_LOG_DATA_BLOCK';
@@ -3272,7 +3273,7 @@ Send Status of each log block that autopilot board might have sent.
 mavlink2.messages.remote_log_block_status = function(target_system, target_component, seqno, status) {
 
     this.format = '<IBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_REMOTE_LOG_BLOCK_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_REMOTE_LOG_BLOCK_STATUS;
     this.order_map = [1, 2, 0, 3];
     this.crc_extra = 186;
     this.name = 'REMOTE_LOG_BLOCK_STATUS';
@@ -3304,7 +3305,7 @@ Control vehicle LEDs.
 mavlink2.messages.led_control = function(target_system, target_component, instance, pattern, custom_len, custom_bytes) {
 
     this.format = '<BBBBB24s';
-    this.id = mavlink2.MAVLINK_MSG_ID_LED_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LED_CONTROL;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 72;
     this.name = 'LED_CONTROL';
@@ -3339,7 +3340,7 @@ Reports progress of compass calibration.
 mavlink2.messages.mag_cal_progress = function(compass_id, cal_mask, cal_status, attempt, completion_pct, completion_mask, direction_x, direction_y, direction_z) {
 
     this.format = '<fffBBBBB10s';
-    this.id = mavlink2.MAVLINK_MSG_ID_MAG_CAL_PROGRESS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MAG_CAL_PROGRESS;
     this.order_map = [3, 4, 5, 6, 7, 8, 0, 1, 2];
     this.crc_extra = 92;
     this.name = 'MAG_CAL_PROGRESS';
@@ -3383,7 +3384,7 @@ MAG_CAL_ACK received.
 mavlink2.messages.mag_cal_report = function(compass_id, cal_mask, cal_status, autosaved, fitness, ofs_x, ofs_y, ofs_z, diag_x, diag_y, diag_z, offdiag_x, offdiag_y, offdiag_z, orientation_confidence, old_orientation, new_orientation) {
 
     this.format = '<ffffffffffBBBBfBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MAG_CAL_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MAG_CAL_REPORT;
     this.order_map = [10, 11, 12, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16];
     this.crc_extra = 36;
     this.name = 'MAG_CAL_REPORT';
@@ -3416,7 +3417,7 @@ EKF Status message including flags and variances.
 mavlink2.messages.ekf_status_report = function(flags, velocity_variance, pos_horiz_variance, pos_vert_variance, compass_variance, terrain_alt_variance, airspeed_variance) {
 
     this.format = '<fffffHf';
-    this.id = mavlink2.MAVLINK_MSG_ID_EKF_STATUS_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_EKF_STATUS_REPORT;
     this.order_map = [5, 0, 1, 2, 3, 4, 6];
     this.crc_extra = 71;
     this.name = 'EKF_STATUS_REPORT';
@@ -3449,7 +3450,7 @@ PID tuning information.
 mavlink2.messages.pid_tuning = function(axis, desired, achieved, FF, P, I, D) {
 
     this.format = '<ffffffB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PID_TUNING;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PID_TUNING;
     this.order_map = [6, 0, 1, 2, 3, 4, 5];
     this.crc_extra = 98;
     this.name = 'PID_TUNING';
@@ -3485,7 +3486,7 @@ Deepstall path planning.
 mavlink2.messages.deepstall = function(landing_lat, landing_lon, path_lat, path_lon, arc_entry_lat, arc_entry_lon, altitude, expected_travel_distance, cross_track_error, stage) {
 
     this.format = '<iiiiiifffB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEEPSTALL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEEPSTALL;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 120;
     this.name = 'DEEPSTALL';
@@ -3523,7 +3524,7 @@ mavlink2.messages.deepstall.prototype.pack = function(mav) {
 mavlink2.messages.gimbal_report = function(target_system, target_component, delta_time, delta_angle_x, delta_angle_y, delta_angle_z, delta_velocity_x, delta_velocity_y, delta_velocity_z, joint_roll, joint_el, joint_az) {
 
     this.format = '<ffffffffffBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GIMBAL_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GIMBAL_REPORT;
     this.order_map = [10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 134;
     this.name = 'GIMBAL_REPORT';
@@ -3554,7 +3555,7 @@ Control message for rate gimbal.
 mavlink2.messages.gimbal_control = function(target_system, target_component, demanded_rate_x, demanded_rate_y, demanded_rate_z) {
 
     this.format = '<fffBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GIMBAL_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GIMBAL_CONTROL;
     this.order_map = [3, 4, 0, 1, 2];
     this.crc_extra = 205;
     this.name = 'GIMBAL_CONTROL';
@@ -3585,7 +3586,7 @@ mavlink2.messages.gimbal_control.prototype.pack = function(mav) {
 mavlink2.messages.gimbal_torque_cmd_report = function(target_system, target_component, rl_torque_cmd, el_torque_cmd, az_torque_cmd) {
 
     this.format = '<hhhBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GIMBAL_TORQUE_CMD_REPORT;
     this.order_map = [3, 4, 0, 1, 2];
     this.crc_extra = 69;
     this.name = 'GIMBAL_TORQUE_CMD_REPORT';
@@ -3614,7 +3615,7 @@ Heartbeat from a HeroBus attached GoPro.
 mavlink2.messages.gopro_heartbeat = function(status, capture_mode, flags) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GOPRO_HEARTBEAT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GOPRO_HEARTBEAT;
     this.order_map = [0, 1, 2];
     this.crc_extra = 101;
     this.name = 'GOPRO_HEARTBEAT';
@@ -3643,7 +3644,7 @@ Request a GOPRO_COMMAND response from the GoPro.
 mavlink2.messages.gopro_get_request = function(target_system, target_component, cmd_id) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GOPRO_GET_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GOPRO_GET_REQUEST;
     this.order_map = [0, 1, 2];
     this.crc_extra = 50;
     this.name = 'GOPRO_GET_REQUEST';
@@ -3672,7 +3673,7 @@ Response from a GOPRO_COMMAND get request.
 mavlink2.messages.gopro_get_response = function(cmd_id, status, value) {
 
     this.format = '<BB4s';
-    this.id = mavlink2.MAVLINK_MSG_ID_GOPRO_GET_RESPONSE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GOPRO_GET_RESPONSE;
     this.order_map = [0, 1, 2];
     this.crc_extra = 202;
     this.name = 'GOPRO_GET_RESPONSE';
@@ -3702,7 +3703,7 @@ Request to set a GOPRO_COMMAND with a desired.
 mavlink2.messages.gopro_set_request = function(target_system, target_component, cmd_id, value) {
 
     this.format = '<BBB4s';
-    this.id = mavlink2.MAVLINK_MSG_ID_GOPRO_SET_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GOPRO_SET_REQUEST;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 17;
     this.name = 'GOPRO_SET_REQUEST';
@@ -3730,7 +3731,7 @@ Response from a GOPRO_COMMAND set request.
 mavlink2.messages.gopro_set_response = function(cmd_id, status) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GOPRO_SET_RESPONSE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GOPRO_SET_RESPONSE;
     this.order_map = [0, 1];
     this.crc_extra = 162;
     this.name = 'GOPRO_SET_RESPONSE';
@@ -3758,7 +3759,7 @@ RPM sensor output.
 mavlink2.messages.rpm = function(rpm1, rpm2) {
 
     this.format = '<ff';
-    this.id = mavlink2.MAVLINK_MSG_ID_RPM;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RPM;
     this.order_map = [0, 1];
     this.crc_extra = 207;
     this.name = 'RPM';
@@ -3793,7 +3794,7 @@ Read registers for a device.
 mavlink2.messages.device_op_read = function(target_system, target_component, request_id, bustype, bus, address, busname, regstart, count) {
 
     this.format = '<IBBBBB40sBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_READ;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_READ;
     this.order_map = [1, 2, 0, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 134;
     this.name = 'DEVICE_OP_READ';
@@ -3824,7 +3825,7 @@ Read registers reply.
 mavlink2.messages.device_op_read_reply = function(request_id, result, regstart, count, data) {
 
     this.format = '<IBBB128s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_READ_REPLY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_READ_REPLY;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 15;
     this.name = 'DEVICE_OP_READ_REPLY';
@@ -3860,7 +3861,7 @@ Write registers for a device.
 mavlink2.messages.device_op_write = function(target_system, target_component, request_id, bustype, bus, address, busname, regstart, count, data) {
 
     this.format = '<IBBBBB40sBB128s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_WRITE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_WRITE;
     this.order_map = [1, 2, 0, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 234;
     this.name = 'DEVICE_OP_WRITE';
@@ -3888,7 +3889,7 @@ Write registers reply.
 mavlink2.messages.device_op_write_reply = function(request_id, result) {
 
     this.format = '<IB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_WRITE_REPLY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEVICE_OP_WRITE_REPLY;
     this.order_map = [0, 1];
     this.crc_extra = 64;
     this.name = 'DEVICE_OP_WRITE_REPLY';
@@ -3927,7 +3928,7 @@ Adaptive Controller tuning information.
 mavlink2.messages.adap_tuning = function(axis, desired, achieved, error, theta, omega, sigma, theta_dot, omega_dot, sigma_dot, f, f_dot, u) {
 
     this.format = '<ffffffffffffB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ADAP_TUNING;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ADAP_TUNING;
     this.order_map = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 46;
     this.name = 'ADAP_TUNING';
@@ -3958,7 +3959,7 @@ Camera vision based attitude and position deltas.
 mavlink2.messages.vision_position_delta = function(time_usec, time_delta_usec, angle_delta, position_delta, confidence) {
 
     this.format = '<QQ3f3ff';
-    this.id = mavlink2.MAVLINK_MSG_ID_VISION_POSITION_DELTA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VISION_POSITION_DELTA;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 106;
     this.name = 'VISION_POSITION_DELTA';
@@ -3987,7 +3988,7 @@ Angle of Attack and Side Slip Angle.
 mavlink2.messages.aoa_ssa = function(time_usec, AOA, SSA) {
 
     this.format = '<Qff';
-    this.id = mavlink2.MAVLINK_MSG_ID_AOA_SSA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AOA_SSA;
     this.order_map = [0, 1, 2];
     this.crc_extra = 205;
     this.name = 'AOA_SSA';
@@ -4019,7 +4020,7 @@ ESC Telemetry Data for ESCs 1 to 4, matching data sent by BLHeli ESCs.
 mavlink2.messages.esc_telemetry_1_to_4 = function(temperature, voltage, current, totalcurrent, rpm, count) {
 
     this.format = '<4H4H4H4H4H4s';
-    this.id = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_1_TO_4;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_1_TO_4;
     this.order_map = [5, 0, 1, 2, 3, 4];
     this.crc_extra = 144;
     this.name = 'ESC_TELEMETRY_1_TO_4';
@@ -4051,7 +4052,7 @@ ESC Telemetry Data for ESCs 5 to 8, matching data sent by BLHeli ESCs.
 mavlink2.messages.esc_telemetry_5_to_8 = function(temperature, voltage, current, totalcurrent, rpm, count) {
 
     this.format = '<4H4H4H4H4H4s';
-    this.id = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_5_TO_8;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_5_TO_8;
     this.order_map = [5, 0, 1, 2, 3, 4];
     this.crc_extra = 133;
     this.name = 'ESC_TELEMETRY_5_TO_8';
@@ -4084,7 +4085,7 @@ ESCs.
 mavlink2.messages.esc_telemetry_9_to_12 = function(temperature, voltage, current, totalcurrent, rpm, count) {
 
     this.format = '<4H4H4H4H4H4s';
-    this.id = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_9_TO_12;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ESC_TELEMETRY_9_TO_12;
     this.order_map = [5, 0, 1, 2, 3, 4];
     this.crc_extra = 85;
     this.name = 'ESC_TELEMETRY_9_TO_12';
@@ -4120,7 +4121,7 @@ based on the autopilot).
 mavlink2.messages.heartbeat = function(type, autopilot, base_mode, custom_mode, system_status, mavlink_version) {
 
     this.format = '<IBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HEARTBEAT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HEARTBEAT;
     this.order_map = [1, 2, 3, 0, 4, 5];
     this.crc_extra = 50;
     this.name = 'HEARTBEAT';
@@ -4173,7 +4174,7 @@ timeout.
 mavlink2.messages.sys_status = function(onboard_control_sensors_present, onboard_control_sensors_enabled, onboard_control_sensors_health, load, voltage_battery, current_battery, battery_remaining, drop_rate_comm, errors_comm, errors_count1, errors_count2, errors_count3, errors_count4) {
 
     this.format = '<IIIHHhHHHHHHb';
-    this.id = mavlink2.MAVLINK_MSG_ID_SYS_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SYS_STATUS;
     this.order_map = [0, 1, 2, 3, 4, 5, 12, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 124;
     this.name = 'SYS_STATUS';
@@ -4202,7 +4203,7 @@ computer clock of the main onboard computer.
 mavlink2.messages.system_time = function(time_unix_usec, time_boot_ms) {
 
     this.format = '<QI';
-    this.id = mavlink2.MAVLINK_MSG_ID_SYSTEM_TIME;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SYSTEM_TIME;
     this.order_map = [0, 1];
     this.crc_extra = 137;
     this.name = 'SYSTEM_TIME';
@@ -4234,7 +4235,7 @@ and UDP connections.
 mavlink2.messages.ping = function(time_usec, seq, target_system, target_component) {
 
     this.format = '<QIBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PING;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PING;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 237;
     this.name = 'PING';
@@ -4264,7 +4265,7 @@ Request to control this MAV
 mavlink2.messages.change_operator_control = function(target_system, control_request, version, passkey) {
 
     this.format = '<BBB25s';
-    this.id = mavlink2.MAVLINK_MSG_ID_CHANGE_OPERATOR_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CHANGE_OPERATOR_CONTROL;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 217;
     this.name = 'CHANGE_OPERATOR_CONTROL';
@@ -4293,7 +4294,7 @@ Accept / deny control of this MAV
 mavlink2.messages.change_operator_control_ack = function(gcs_system_id, control_request, ack) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_CHANGE_OPERATOR_CONTROL_ACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CHANGE_OPERATOR_CONTROL_ACK;
     this.order_map = [0, 1, 2];
     this.crc_extra = 104;
     this.name = 'CHANGE_OPERATOR_CONTROL_ACK';
@@ -4322,7 +4323,7 @@ requires an encrypted channel for true safety.
 mavlink2.messages.auth_key = function(key) {
 
     this.format = '<32s';
-    this.id = mavlink2.MAVLINK_MSG_ID_AUTH_KEY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AUTH_KEY;
     this.order_map = [0];
     this.crc_extra = 119;
     this.name = 'AUTH_KEY';
@@ -4353,7 +4354,7 @@ not only for one component.
 mavlink2.messages.set_mode = function(target_system, base_mode, custom_mode) {
 
     this.format = '<IBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_MODE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_MODE;
     this.order_map = [1, 2, 0];
     this.crc_extra = 89;
     this.name = 'SET_MODE';
@@ -4389,7 +4390,7 @@ a full documentation of QGroundControl and IMU code.
 mavlink2.messages.param_request_read = function(target_system, target_component, param_id, param_index) {
 
     this.format = '<hBB16s';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_REQUEST_READ;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_REQUEST_READ;
     this.order_map = [1, 2, 3, 0];
     this.crc_extra = 214;
     this.name = 'PARAM_REQUEST_READ';
@@ -4418,7 +4419,7 @@ parameters are emitted.
 mavlink2.messages.param_request_list = function(target_system, target_component) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_REQUEST_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_REQUEST_LIST;
     this.order_map = [0, 1];
     this.crc_extra = 159;
     this.name = 'PARAM_REQUEST_LIST';
@@ -4452,7 +4453,7 @@ after a loss or timeout.
 mavlink2.messages.param_value = function(param_id, param_value, param_type, param_count, param_index) {
 
     this.format = '<fHH16sB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_VALUE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_VALUE;
     this.order_map = [3, 0, 4, 1, 2];
     this.crc_extra = 220;
     this.name = 'PARAM_VALUE';
@@ -4489,7 +4490,7 @@ PARAM_SET message.
 mavlink2.messages.param_set = function(target_system, target_component, param_id, param_value, param_type) {
 
     this.format = '<fBB16sB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_SET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_SET;
     this.order_map = [1, 2, 3, 0, 4];
     this.crc_extra = 168;
     this.name = 'PARAM_SET';
@@ -4533,7 +4534,7 @@ the global position estimate.
 mavlink2.messages.gps_raw_int = function(time_usec, fix_type, lat, lon, alt, eph, epv, vel, cog, satellites_visible, alt_ellipsoid, h_acc, v_acc, vel_acc, hdg_acc) {
 
     this.format = '<QiiiHHHHBBiIIII';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_RAW_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_RAW_INT;
     this.order_map = [0, 8, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14];
     this.crc_extra = 24;
     this.name = 'GPS_RAW_INT';
@@ -4569,7 +4570,7 @@ satellites.
 mavlink2.messages.gps_status = function(satellites_visible, satellite_prn, satellite_used, satellite_elevation, satellite_azimuth, satellite_snr) {
 
     this.format = '<B20s20s20s20s20s';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_STATUS;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 23;
     this.name = 'GPS_STATUS';
@@ -4606,7 +4607,7 @@ should contain the scaled values to the described units
 mavlink2.messages.scaled_imu = function(time_boot_ms, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag) {
 
     this.format = '<Ihhhhhhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_IMU;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_IMU;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 170;
     this.name = 'SCALED_IMU';
@@ -4644,7 +4645,7 @@ data capture and system debugging.
 mavlink2.messages.raw_imu = function(time_usec, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag) {
 
     this.format = '<Qhhhhhhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_RAW_IMU;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RAW_IMU;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 144;
     this.name = 'RAW_IMU';
@@ -4677,7 +4678,7 @@ should be the raw, UNSCALED ADC values.
 mavlink2.messages.raw_pressure = function(time_usec, press_abs, press_diff1, press_diff2, temperature) {
 
     this.format = '<Qhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_RAW_PRESSURE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RAW_PRESSURE;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 67;
     this.name = 'RAW_PRESSURE';
@@ -4709,7 +4710,7 @@ field.
 mavlink2.messages.scaled_pressure = function(time_boot_ms, press_abs, press_diff, temperature) {
 
     this.format = '<Iffh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 115;
     this.name = 'SCALED_PRESSURE';
@@ -4743,7 +4744,7 @@ Y-right).
 mavlink2.messages.attitude = function(time_boot_ms, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed) {
 
     this.format = '<Iffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_ATTITUDE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ATTITUDE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 39;
     this.name = 'ATTITUDE';
@@ -4779,7 +4780,7 @@ a zero rotation would be expressed as (1 0 0 0).
 mavlink2.messages.attitude_quaternion = function(time_boot_ms, q1, q2, q3, q4, rollspeed, pitchspeed, yawspeed) {
 
     this.format = '<Ifffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_ATTITUDE_QUATERNION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ATTITUDE_QUATERNION;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7];
     this.crc_extra = 246;
     this.name = 'ATTITUDE_QUATERNION';
@@ -4814,7 +4815,7 @@ accelerometers). Coordinate frame is right-handed, Z-axis down
 mavlink2.messages.local_position_ned = function(time_boot_ms, x, y, z, vx, vy, vz) {
 
     this.format = '<Iffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 185;
     this.name = 'LOCAL_POSITION_NED';
@@ -4852,7 +4853,7 @@ not sufficient.
 mavlink2.messages.global_position_int = function(time_boot_ms, lat, lon, alt, relative_alt, vx, vy, vz, hdg) {
 
     this.format = '<IiiiihhhH';
-    this.id = mavlink2.MAVLINK_MSG_ID_GLOBAL_POSITION_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GLOBAL_POSITION_INT;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 104;
     this.name = 'GLOBAL_POSITION_INT';
@@ -4890,7 +4891,7 @@ The scaled values of the RC channels received: (-100%) -10000, (0%) 0,
 mavlink2.messages.rc_channels_scaled = function(time_boot_ms, port, chan1_scaled, chan2_scaled, chan3_scaled, chan4_scaled, chan5_scaled, chan6_scaled, chan7_scaled, chan8_scaled, rssi) {
 
     this.format = '<IhhhhhhhhBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_SCALED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_SCALED;
     this.order_map = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8, 10];
     this.crc_extra = 237;
     this.name = 'RC_CHANNELS_SCALED';
@@ -4930,7 +4931,7 @@ receivers/transmitters might violate this specification.
 mavlink2.messages.rc_channels_raw = function(time_boot_ms, port, chan1_raw, chan2_raw, chan3_raw, chan4_raw, chan5_raw, chan6_raw, chan7_raw, chan8_raw, rssi) {
 
     this.format = '<IHHHHHHHHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_RAW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_RAW;
     this.order_map = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8, 10];
     this.crc_extra = 244;
     this.name = 'RC_CHANNELS_RAW';
@@ -4976,7 +4977,7 @@ the RC_CHANNELS messages). The standard PPM modulation is as follows:
 mavlink2.messages.servo_output_raw = function(time_usec, port, servo1_raw, servo2_raw, servo3_raw, servo4_raw, servo5_raw, servo6_raw, servo7_raw, servo8_raw, servo9_raw, servo10_raw, servo11_raw, servo12_raw, servo13_raw, servo14_raw, servo15_raw, servo16_raw) {
 
     this.format = '<IHHHHHHHHBHHHHHHHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW;
     this.order_map = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17];
     this.crc_extra = 222;
     this.name = 'SERVO_OUTPUT_RAW';
@@ -5009,7 +5010,7 @@ are the same, just send one waypoint.
 mavlink2.messages.mission_request_partial_list = function(target_system, target_component, start_index, end_index, mission_type) {
 
     this.format = '<hhBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_PARTIAL_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_PARTIAL_LIST;
     this.order_map = [2, 3, 0, 1, 4];
     this.crc_extra = 212;
     this.name = 'MISSION_REQUEST_PARTIAL_LIST';
@@ -5043,7 +5044,7 @@ should be REJECTED!
 mavlink2.messages.mission_write_partial_list = function(target_system, target_component, start_index, end_index, mission_type) {
 
     this.format = '<hhBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_WRITE_PARTIAL_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_WRITE_PARTIAL_LIST;
     this.order_map = [2, 3, 0, 1, 4];
     this.crc_extra = 9;
     this.name = 'MISSION_WRITE_PARTIAL_LIST';
@@ -5089,7 +5090,7 @@ https://mavlink.io/en/services/mission.html.
 mavlink2.messages.mission_item = function(target_system, target_component, seq, frame, command, current, autocontinue, param1, param2, param3, param4, x, y, z, mission_type) {
 
     this.format = '<fffffffHHBBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM;
     this.order_map = [9, 10, 7, 11, 8, 12, 13, 0, 1, 2, 3, 4, 5, 6, 14];
     this.crc_extra = 254;
     this.name = 'MISSION_ITEM';
@@ -5121,7 +5122,7 @@ MISSION_ITEM message. https://mavlink.io/en/services/mission.html
 mavlink2.messages.mission_request = function(target_system, target_component, seq, mission_type) {
 
     this.format = '<HBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST;
     this.order_map = [1, 2, 0, 3];
     this.crc_extra = 230;
     this.name = 'MISSION_REQUEST';
@@ -5152,7 +5153,7 @@ path (not following the mission items in-between).
 mavlink2.messages.mission_set_current = function(target_system, target_component, seq) {
 
     this.format = '<HBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_SET_CURRENT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_SET_CURRENT;
     this.order_map = [1, 2, 0];
     this.crc_extra = 28;
     this.name = 'MISSION_SET_CURRENT';
@@ -5180,7 +5181,7 @@ mission item. The MAV will fly towards this mission item.
 mavlink2.messages.mission_current = function(seq) {
 
     this.format = '<H';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_CURRENT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_CURRENT;
     this.order_map = [0];
     this.crc_extra = 28;
     this.name = 'MISSION_CURRENT';
@@ -5209,7 +5210,7 @@ Request the overall list of mission items from the system/component.
 mavlink2.messages.mission_request_list = function(target_system, target_component, mission_type) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_LIST;
     this.order_map = [0, 1, 2];
     this.crc_extra = 132;
     this.name = 'MISSION_REQUEST_LIST';
@@ -5242,7 +5243,7 @@ waypoints.
 mavlink2.messages.mission_count = function(target_system, target_component, count, mission_type) {
 
     this.format = '<HBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_COUNT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_COUNT;
     this.order_map = [1, 2, 0, 3];
     this.crc_extra = 221;
     this.name = 'MISSION_COUNT';
@@ -5271,7 +5272,7 @@ Delete all mission items at once.
 mavlink2.messages.mission_clear_all = function(target_system, target_component, mission_type) {
 
     this.format = '<BBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_CLEAR_ALL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_CLEAR_ALL;
     this.order_map = [0, 1, 2];
     this.crc_extra = 232;
     this.name = 'MISSION_CLEAR_ALL';
@@ -5300,7 +5301,7 @@ WP was set) continue to the next waypoint.
 mavlink2.messages.mission_item_reached = function(seq) {
 
     this.format = '<H';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM_REACHED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM_REACHED;
     this.order_map = [0];
     this.crc_extra = 11;
     this.name = 'MISSION_ITEM_REACHED';
@@ -5332,7 +5333,7 @@ if this message is a positive ack (type=0) or if an error happened
 mavlink2.messages.mission_ack = function(target_system, target_component, type, mission_type) {
 
     this.format = '<BBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_ACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_ACK;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 153;
     this.name = 'MISSION_ACK';
@@ -5366,7 +5367,7 @@ settings are connected and the MAV should move from in- to outdoor.
 mavlink2.messages.set_gps_global_origin = function(target_system, latitude, longitude, altitude, time_usec) {
 
     this.format = '<iiiBQ';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_GPS_GLOBAL_ORIGIN;
     this.order_map = [3, 0, 1, 2, 4];
     this.crc_extra = 41;
     this.name = 'SET_GPS_GLOBAL_ORIGIN';
@@ -5397,7 +5398,7 @@ announces the origin (0,0,0) position
 mavlink2.messages.gps_global_origin = function(latitude, longitude, altitude, time_usec) {
 
     this.format = '<iiiQ';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_GLOBAL_ORIGIN;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_GLOBAL_ORIGIN;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 39;
     this.name = 'GPS_GLOBAL_ORIGIN';
@@ -5433,7 +5434,7 @@ according to the RC channel value.
 mavlink2.messages.param_map_rc = function(target_system, target_component, param_id, param_index, parameter_rc_channel_index, param_value0, scale, param_value_min, param_value_max) {
 
     this.format = '<ffffhBB16sB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_MAP_RC;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_MAP_RC;
     this.order_map = [5, 6, 7, 4, 8, 0, 1, 2, 3];
     this.crc_extra = 78;
     this.name = 'PARAM_MAP_RC';
@@ -5465,7 +5466,7 @@ MISSION_ITEM_INT message. https://mavlink.io/en/services/mission.html
 mavlink2.messages.mission_request_int = function(target_system, target_component, seq, mission_type) {
 
     this.format = '<HBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_REQUEST_INT;
     this.order_map = [1, 2, 0, 3];
     this.crc_extra = 196;
     this.name = 'MISSION_REQUEST_INT';
@@ -5503,7 +5504,7 @@ national or competition regulations.
 mavlink2.messages.safety_set_allowed_area = function(target_system, target_component, frame, p1x, p1y, p1z, p2x, p2y, p2z) {
 
     this.format = '<ffffffBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SAFETY_SET_ALLOWED_AREA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SAFETY_SET_ALLOWED_AREA;
     this.order_map = [6, 7, 8, 0, 1, 2, 3, 4, 5];
     this.crc_extra = 15;
     this.name = 'SAFETY_SET_ALLOWED_AREA';
@@ -5536,7 +5537,7 @@ Read out the safety zone the MAV currently assumes.
 mavlink2.messages.safety_allowed_area = function(frame, p1x, p1y, p1z, p2x, p2y, p2z) {
 
     this.format = '<ffffffB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SAFETY_ALLOWED_AREA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SAFETY_ALLOWED_AREA;
     this.order_map = [6, 0, 1, 2, 3, 4, 5];
     this.crc_extra = 3;
     this.name = 'SAFETY_ALLOWED_AREA';
@@ -5570,7 +5571,7 @@ a zero rotation would be expressed as (1 0 0 0).
 mavlink2.messages.attitude_quaternion_cov = function(time_usec, q, rollspeed, pitchspeed, yawspeed, covariance) {
 
     this.format = '<Q4ffff9f';
-    this.id = mavlink2.MAVLINK_MSG_ID_ATTITUDE_QUATERNION_COV;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ATTITUDE_QUATERNION_COV;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 167;
     this.name = 'ATTITUDE_QUATERNION_COV';
@@ -5604,7 +5605,7 @@ The state of the fixed wing navigation and position controller.
 mavlink2.messages.nav_controller_output = function(nav_roll, nav_pitch, nav_bearing, target_bearing, wp_dist, alt_error, aspd_error, xtrack_error) {
 
     this.format = '<fffffhhH';
-    this.id = mavlink2.MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_NAV_CONTROLLER_OUTPUT;
     this.order_map = [0, 1, 5, 6, 7, 2, 3, 4];
     this.crc_extra = 183;
     this.name = 'NAV_CONTROLLER_OUTPUT';
@@ -5646,7 +5647,7 @@ for a minimal subset.
 mavlink2.messages.global_position_int_cov = function(time_usec, estimator_type, lat, lon, alt, relative_alt, vx, vy, vz, covariance) {
 
     this.format = '<Qiiiifff36fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GLOBAL_POSITION_INT_COV;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GLOBAL_POSITION_INT_COV;
     this.order_map = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 119;
     this.name = 'GLOBAL_POSITION_INT_COV';
@@ -5686,7 +5687,7 @@ accelerometers). Coordinate frame is right-handed, Z-axis down
 mavlink2.messages.local_position_ned_cov = function(time_usec, estimator_type, x, y, z, vx, vy, vz, ax, ay, az, covariance) {
 
     this.format = '<Qfffffffff45fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED_COV;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED_COV;
     this.order_map = [0, 11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.crc_extra = 191;
     this.name = 'LOCAL_POSITION_NED_COV';
@@ -5736,7 +5737,7 @@ receivers/transmitters might violate this specification.
 mavlink2.messages.rc_channels = function(time_boot_ms, chancount, chan1_raw, chan2_raw, chan3_raw, chan4_raw, chan5_raw, chan6_raw, chan7_raw, chan8_raw, chan9_raw, chan10_raw, chan11_raw, chan12_raw, chan13_raw, chan14_raw, chan15_raw, chan16_raw, chan17_raw, chan18_raw, rssi) {
 
     this.format = '<IHHHHHHHHHHHHHHHHHHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS;
     this.order_map = [0, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20];
     this.crc_extra = 118;
     this.name = 'RC_CHANNELS';
@@ -5767,7 +5768,7 @@ Request a data stream.
 mavlink2.messages.request_data_stream = function(target_system, target_component, req_stream_id, req_message_rate, start_stop) {
 
     this.format = '<HBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_REQUEST_DATA_STREAM;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_REQUEST_DATA_STREAM;
     this.order_map = [1, 2, 3, 0, 4];
     this.crc_extra = 148;
     this.name = 'REQUEST_DATA_STREAM';
@@ -5796,7 +5797,7 @@ Data stream status information.
 mavlink2.messages.data_stream = function(stream_id, message_rate, on_off) {
 
     this.format = '<HBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA_STREAM;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA_STREAM;
     this.order_map = [1, 0, 2];
     this.crc_extra = 21;
     this.name = 'DATA_STREAM';
@@ -5831,7 +5832,7 @@ as boolean values of their
 mavlink2.messages.manual_control = function(target, x, y, z, r, buttons) {
 
     this.format = '<hhhhHB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MANUAL_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MANUAL_CONTROL;
     this.order_map = [5, 0, 1, 2, 3, 4];
     this.crc_extra = 243;
     this.name = 'MANUAL_CONTROL';
@@ -5882,7 +5883,7 @@ receivers/transmitters might violate this specification.
 mavlink2.messages.rc_channels_override = function(target_system, target_component, chan1_raw, chan2_raw, chan3_raw, chan4_raw, chan5_raw, chan6_raw, chan7_raw, chan8_raw, chan9_raw, chan10_raw, chan11_raw, chan12_raw, chan13_raw, chan14_raw, chan15_raw, chan16_raw, chan17_raw, chan18_raw) {
 
     this.format = '<HHHHHHHHBBHHHHHHHHHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE;
     this.order_map = [8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
     this.crc_extra = 124;
     this.name = 'RC_CHANNELS_OVERRIDE';
@@ -5928,7 +5929,7 @@ https://mavlink.io/en/services/mission.html.
 mavlink2.messages.mission_item_int = function(target_system, target_component, seq, frame, command, current, autocontinue, param1, param2, param3, param4, x, y, z, mission_type) {
 
     this.format = '<ffffiifHHBBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MISSION_ITEM_INT;
     this.order_map = [9, 10, 7, 11, 8, 12, 13, 0, 1, 2, 3, 4, 5, 6, 14];
     this.crc_extra = 38;
     this.name = 'MISSION_ITEM_INT';
@@ -5960,7 +5961,7 @@ Metrics typically displayed on a HUD for fixed wing aircraft.
 mavlink2.messages.vfr_hud = function(airspeed, groundspeed, heading, throttle, alt, climb) {
 
     this.format = '<ffffhH';
-    this.id = mavlink2.MAVLINK_MSG_ID_VFR_HUD;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VFR_HUD;
     this.order_map = [0, 1, 4, 5, 2, 3];
     this.crc_extra = 20;
     this.name = 'VFR_HUD';
@@ -6000,7 +6001,7 @@ depends on the actual command value.
 mavlink2.messages.command_int = function(target_system, target_component, frame, command, current, autocontinue, param1, param2, param3, param4, x, y, z) {
 
     this.format = '<ffffiifHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_COMMAND_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_COMMAND_INT;
     this.order_map = [8, 9, 10, 7, 11, 12, 0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 158;
     this.name = 'COMMAND_INT';
@@ -6037,7 +6038,7 @@ Send a command with up to seven parameters to the MAV
 mavlink2.messages.command_long = function(target_system, target_component, command, confirmation, param1, param2, param3, param4, param5, param6, param7) {
 
     this.format = '<fffffffHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_COMMAND_LONG;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_COMMAND_LONG;
     this.order_map = [8, 9, 7, 10, 0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 152;
     this.name = 'COMMAND_LONG';
@@ -6070,7 +6071,7 @@ executed.
 mavlink2.messages.command_ack = function(command, result, progress, result_param2, target_system, target_component) {
 
     this.format = '<HBBiBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_COMMAND_ACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_COMMAND_ACK;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 143;
     this.name = 'COMMAND_ACK';
@@ -6103,7 +6104,7 @@ Setpoint in roll, pitch, yaw and thrust from the operator
 mavlink2.messages.manual_setpoint = function(time_boot_ms, roll, pitch, yaw, thrust, mode_switch, manual_override_switch) {
 
     this.format = '<IffffBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_MANUAL_SETPOINT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MANUAL_SETPOINT;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 106;
     this.name = 'MANUAL_SETPOINT';
@@ -6139,7 +6140,7 @@ command the vehicle (manual controller or other system).
 mavlink2.messages.set_attitude_target = function(time_boot_ms, target_system, target_component, type_mask, q, body_roll_rate, body_pitch_rate, body_yaw_rate, thrust) {
 
     this.format = '<I4fffffBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_ATTITUDE_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_ATTITUDE_TARGET;
     this.order_map = [0, 6, 7, 8, 1, 2, 3, 4, 5];
     this.crc_extra = 49;
     this.name = 'SET_ATTITUDE_TARGET';
@@ -6175,7 +6176,7 @@ way.
 mavlink2.messages.attitude_target = function(time_boot_ms, type_mask, q, body_roll_rate, body_pitch_rate, body_yaw_rate, thrust) {
 
     this.format = '<I4fffffB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ATTITUDE_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ATTITUDE_TARGET;
     this.order_map = [0, 6, 1, 2, 3, 4, 5];
     this.crc_extra = 22;
     this.name = 'ATTITUDE_TARGET';
@@ -6219,7 +6220,7 @@ controller or other system).
 mavlink2.messages.set_position_target_local_ned = function(time_boot_ms, target_system, target_component, coordinate_frame, type_mask, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate) {
 
     this.format = '<IfffffffffffHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED;
     this.order_map = [0, 13, 14, 15, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 143;
     this.name = 'SET_POSITION_TARGET_LOCAL_NED';
@@ -6262,7 +6263,7 @@ controlled this way.
 mavlink2.messages.position_target_local_ned = function(time_boot_ms, coordinate_frame, type_mask, x, y, z, vx, vy, vz, afx, afy, afz, yaw, yaw_rate) {
 
     this.format = '<IfffffffffffHB';
-    this.id = mavlink2.MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_POSITION_TARGET_LOCAL_NED;
     this.order_map = [0, 13, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 140;
     this.name = 'POSITION_TARGET_LOCAL_NED';
@@ -6306,7 +6307,7 @@ command the vehicle (manual controller or other system).
 mavlink2.messages.set_position_target_global_int = function(time_boot_ms, target_system, target_component, coordinate_frame, type_mask, lat_int, lon_int, alt, vx, vy, vz, afx, afy, afz, yaw, yaw_rate) {
 
     this.format = '<IiifffffffffHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT;
     this.order_map = [0, 13, 14, 15, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 5;
     this.name = 'SET_POSITION_TARGET_GLOBAL_INT';
@@ -6349,7 +6350,7 @@ being controlled this way.
 mavlink2.messages.position_target_global_int = function(time_boot_ms, coordinate_frame, type_mask, lat_int, lon_int, alt, vx, vy, vz, afx, afy, afz, yaw, yaw_rate) {
 
     this.format = '<IiifffffffffHB';
-    this.id = mavlink2.MAVLINK_MSG_ID_POSITION_TARGET_GLOBAL_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_POSITION_TARGET_GLOBAL_INT;
     this.order_map = [0, 13, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 150;
     this.name = 'POSITION_TARGET_GLOBAL_INT';
@@ -6385,7 +6386,7 @@ Coordinate frame is right-handed, Z-axis down (aeronautical frame, NED
 mavlink2.messages.local_position_ned_system_global_offset = function(time_boot_ms, x, y, z, roll, pitch, yaw) {
 
     this.format = '<Iffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 231;
     this.name = 'LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET';
@@ -6428,7 +6429,7 @@ throughput applications such as hardware in the loop simulations.
 mavlink2.messages.hil_state = function(time_usec, roll, pitch, yaw, rollspeed, pitchspeed, yawspeed, lat, lon, alt, vx, vy, vz, xacc, yacc, zacc) {
 
     this.format = '<Qffffffiiihhhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_STATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_STATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     this.crc_extra = 183;
     this.name = 'HIL_STATE';
@@ -6466,7 +6467,7 @@ outputs
 mavlink2.messages.hil_controls = function(time_usec, roll_ailerons, pitch_elevator, yaw_rudder, throttle, aux1, aux2, aux3, aux4, mode, nav_mode) {
 
     this.format = '<QffffffffBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_CONTROLS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_CONTROLS;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.crc_extra = 63;
     this.name = 'HIL_CONTROLS';
@@ -6509,7 +6510,7 @@ receivers/transmitters might violate this specification.
 mavlink2.messages.hil_rc_inputs_raw = function(time_usec, chan1_raw, chan2_raw, chan3_raw, chan4_raw, chan5_raw, chan6_raw, chan7_raw, chan8_raw, chan9_raw, chan10_raw, chan11_raw, chan12_raw, rssi) {
 
     this.format = '<QHHHHHHHHHHHHB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_RC_INPUTS_RAW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_RC_INPUTS_RAW;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     this.crc_extra = 54;
     this.name = 'HIL_RC_INPUTS_RAW';
@@ -6540,7 +6541,7 @@ outputs (replacement for HIL_CONTROLS)
 mavlink2.messages.hil_actuator_controls = function(time_usec, controls, mode, flags) {
 
     this.format = '<QQ16fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_ACTUATOR_CONTROLS;
     this.order_map = [0, 2, 3, 1];
     this.crc_extra = 47;
     this.name = 'HIL_ACTUATOR_CONTROLS';
@@ -6576,7 +6577,7 @@ Optical flow from a flow sensor (e.g. optical mouse sensor)
 mavlink2.messages.optical_flow = function(time_usec, sensor_id, flow_x, flow_y, flow_comp_m_x, flow_comp_m_y, quality, ground_distance, flow_rate_x, flow_rate_y) {
 
     this.format = '<QfffhhBBff';
-    this.id = mavlink2.MAVLINK_MSG_ID_OPTICAL_FLOW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_OPTICAL_FLOW;
     this.order_map = [0, 6, 4, 5, 1, 2, 7, 3, 8, 9];
     this.crc_extra = 175;
     this.name = 'OPTICAL_FLOW';
@@ -6610,7 +6611,7 @@ Global position/attitude estimate from a vision source.
 mavlink2.messages.global_vision_position_estimate = function(usec, x, y, z, roll, pitch, yaw, covariance) {
 
     this.format = '<Qffffff21f';
-    this.id = mavlink2.MAVLINK_MSG_ID_GLOBAL_VISION_POSITION_ESTIMATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GLOBAL_VISION_POSITION_ESTIMATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7];
     this.crc_extra = 102;
     this.name = 'GLOBAL_VISION_POSITION_ESTIMATE';
@@ -6644,7 +6645,7 @@ Global position/attitude estimate from a vision source.
 mavlink2.messages.vision_position_estimate = function(usec, x, y, z, roll, pitch, yaw, covariance) {
 
     this.format = '<Qffffff21f';
-    this.id = mavlink2.MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7];
     this.crc_extra = 158;
     this.name = 'VISION_POSITION_ESTIMATE';
@@ -6675,7 +6676,7 @@ Speed estimate from a vision source.
 mavlink2.messages.vision_speed_estimate = function(usec, x, y, z, covariance) {
 
     this.format = '<Qfff9f';
-    this.id = mavlink2.MAVLINK_MSG_ID_VISION_SPEED_ESTIMATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VISION_SPEED_ESTIMATE;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 208;
     this.name = 'VISION_SPEED_ESTIMATE';
@@ -6709,7 +6710,7 @@ Global position estimate from a Vicon motion system source.
 mavlink2.messages.vicon_position_estimate = function(usec, x, y, z, roll, pitch, yaw, covariance) {
 
     this.format = '<Qffffff21f';
-    this.id = mavlink2.MAVLINK_MSG_ID_VICON_POSITION_ESTIMATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VICON_POSITION_ESTIMATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7];
     this.crc_extra = 56;
     this.name = 'VICON_POSITION_ESTIMATE';
@@ -6750,7 +6751,7 @@ The IMU readings in SI units in NED body frame
 mavlink2.messages.highres_imu = function(time_usec, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag, abs_pressure, diff_pressure, pressure_alt, temperature, fields_updated) {
 
     this.format = '<QfffffffffffffH';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIGHRES_IMU;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIGHRES_IMU;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
     this.crc_extra = 93;
     this.name = 'HIGHRES_IMU';
@@ -6789,7 +6790,7 @@ sensor)
 mavlink2.messages.optical_flow_rad = function(time_usec, sensor_id, integration_time_us, integrated_x, integrated_y, integrated_xgyro, integrated_ygyro, integrated_zgyro, temperature, quality, time_delta_distance_us, distance) {
 
     this.format = '<QIfffffIfhBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_OPTICAL_FLOW_RAD;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_OPTICAL_FLOW_RAD;
     this.order_map = [0, 10, 1, 2, 3, 4, 5, 6, 9, 11, 7, 8];
     this.crc_extra = 138;
     this.name = 'OPTICAL_FLOW_RAD';
@@ -6830,7 +6831,7 @@ The IMU readings in SI units in NED body frame
 mavlink2.messages.hil_sensor = function(time_usec, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag, abs_pressure, diff_pressure, pressure_alt, temperature, fields_updated) {
 
     this.format = '<QfffffffffffffI';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_SENSOR;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_SENSOR;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
     this.crc_extra = 108;
     this.name = 'HIL_SENSOR';
@@ -6877,7 +6878,7 @@ Status of simulation environment, if used
 mavlink2.messages.sim_state = function(q1, q2, q3, q4, roll, pitch, yaw, xacc, yacc, zacc, xgyro, ygyro, zgyro, lat, lon, alt, std_dev_horz, std_dev_vert, vn, ve, vd) {
 
     this.format = '<fffffffffffffffffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_SIM_STATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SIM_STATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
     this.crc_extra = 32;
     this.name = 'SIM_STATE';
@@ -6910,7 +6911,7 @@ Status generated by radio and injected into MAVLink stream.
 mavlink2.messages.radio_status = function(rssi, remrssi, txbuf, noise, remnoise, rxerrors, fixed) {
 
     this.format = '<HHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_RADIO_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RADIO_STATUS;
     this.order_map = [2, 3, 4, 5, 6, 0, 1];
     this.crc_extra = 185;
     this.name = 'RADIO_STATUS';
@@ -6940,7 +6941,7 @@ File transfer message
 mavlink2.messages.file_transfer_protocol = function(target_network, target_system, target_component, payload) {
 
     this.format = '<BBB251s';
-    this.id = mavlink2.MAVLINK_MSG_ID_FILE_TRANSFER_PROTOCOL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FILE_TRANSFER_PROTOCOL;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 84;
     this.name = 'FILE_TRANSFER_PROTOCOL';
@@ -6968,7 +6969,7 @@ Time synchronization message.
 mavlink2.messages.timesync = function(tc1, ts1) {
 
     this.format = '<qq';
-    this.id = mavlink2.MAVLINK_MSG_ID_TIMESYNC;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TIMESYNC;
     this.order_map = [0, 1];
     this.crc_extra = 34;
     this.name = 'TIMESYNC';
@@ -6996,7 +6997,7 @@ Camera-IMU triggering and synchronisation message.
 mavlink2.messages.camera_trigger = function(time_usec, seq) {
 
     this.format = '<QI';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_TRIGGER;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_TRIGGER;
     this.order_map = [0, 1];
     this.crc_extra = 174;
     this.name = 'CAMERA_TRIGGER';
@@ -7038,7 +7039,7 @@ for the global position estimate.
 mavlink2.messages.hil_gps = function(time_usec, fix_type, lat, lon, alt, eph, epv, vel, vn, ve, vd, cog, satellites_visible) {
 
     this.format = '<QiiiHHHhhhHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_GPS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_GPS;
     this.order_map = [0, 11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
     this.crc_extra = 124;
     this.name = 'HIL_GPS';
@@ -7077,7 +7078,7 @@ mouse sensor)
 mavlink2.messages.hil_optical_flow = function(time_usec, sensor_id, integration_time_us, integrated_x, integrated_y, integrated_xgyro, integrated_ygyro, integrated_zgyro, temperature, quality, time_delta_distance_us, distance) {
 
     this.format = '<QIfffffIfhBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_OPTICAL_FLOW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_OPTICAL_FLOW;
     this.order_map = [0, 10, 1, 2, 3, 4, 5, 6, 9, 11, 7, 8];
     this.crc_extra = 237;
     this.name = 'HIL_OPTICAL_FLOW';
@@ -7121,7 +7122,7 @@ such as hardware in the loop simulations.
 mavlink2.messages.hil_state_quaternion = function(time_usec, attitude_quaternion, rollspeed, pitchspeed, yawspeed, lat, lon, alt, vx, vy, vz, ind_airspeed, true_airspeed, xacc, yacc, zacc) {
 
     this.format = '<Q4ffffiiihhhHHhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIL_STATE_QUATERNION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIL_STATE_QUATERNION;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     this.crc_extra = 4;
     this.name = 'HIL_STATE_QUATERNION';
@@ -7158,7 +7159,7 @@ should contain the scaled values to the described units
 mavlink2.messages.scaled_imu2 = function(time_boot_ms, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag) {
 
     this.format = '<Ihhhhhhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_IMU2;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_IMU2;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 76;
     this.name = 'SCALED_IMU2';
@@ -7189,7 +7190,7 @@ stop on-board logging until LOG_REQUEST_END is called.
 mavlink2.messages.log_request_list = function(target_system, target_component, start, end) {
 
     this.format = '<HHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_LIST;
     this.order_map = [2, 3, 0, 1];
     this.crc_extra = 128;
     this.name = 'LOG_REQUEST_LIST';
@@ -7220,7 +7221,7 @@ Reply to LOG_REQUEST_LIST
 mavlink2.messages.log_entry = function(id, num_logs, last_log_num, time_utc, size) {
 
     this.format = '<IIHHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_ENTRY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_ENTRY;
     this.order_map = [2, 3, 4, 0, 1];
     this.crc_extra = 56;
     this.name = 'LOG_ENTRY';
@@ -7251,7 +7252,7 @@ Request a chunk of a log
 mavlink2.messages.log_request_data = function(target_system, target_component, id, ofs, count) {
 
     this.format = '<IIHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_DATA;
     this.order_map = [3, 4, 2, 0, 1];
     this.crc_extra = 116;
     this.name = 'LOG_REQUEST_DATA';
@@ -7281,7 +7282,7 @@ Reply to LOG_REQUEST_DATA
 mavlink2.messages.log_data = function(id, ofs, count, data) {
 
     this.format = '<IHB90s';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_DATA;
     this.order_map = [1, 0, 2, 3];
     this.crc_extra = 134;
     this.name = 'LOG_DATA';
@@ -7309,7 +7310,7 @@ Erase all logs
 mavlink2.messages.log_erase = function(target_system, target_component) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_ERASE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_ERASE;
     this.order_map = [0, 1];
     this.crc_extra = 237;
     this.name = 'LOG_ERASE';
@@ -7337,7 +7338,7 @@ Stop log transfer and resume normal logging
 mavlink2.messages.log_request_end = function(target_system, target_component) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_END;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOG_REQUEST_END;
     this.order_map = [0, 1];
     this.crc_extra = 203;
     this.name = 'LOG_REQUEST_END';
@@ -7367,7 +7368,7 @@ Data for injecting into the onboard GPS (used for DGPS)
 mavlink2.messages.gps_inject_data = function(target_system, target_component, len, data) {
 
     this.format = '<BBB110s';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_INJECT_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_INJECT_DATA;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 250;
     this.name = 'GPS_INJECT_DATA';
@@ -7405,7 +7406,7 @@ Second GPS data.
 mavlink2.messages.gps2_raw = function(time_usec, fix_type, lat, lon, alt, eph, epv, vel, cog, satellites_visible, dgps_numch, dgps_age) {
 
     this.format = '<QiiiIHHHHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS2_RAW;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS2_RAW;
     this.order_map = [0, 9, 1, 2, 3, 5, 6, 7, 8, 10, 11, 4];
     this.crc_extra = 87;
     this.name = 'GPS2_RAW';
@@ -7434,7 +7435,7 @@ Power supply status
 mavlink2.messages.power_status = function(Vcc, Vservo, flags) {
 
     this.format = '<HHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_POWER_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_POWER_STATUS;
     this.order_map = [0, 1, 2];
     this.crc_extra = 203;
     this.name = 'POWER_STATUS';
@@ -7470,7 +7471,7 @@ to change just the baudrate.
 mavlink2.messages.serial_control = function(device, flags, timeout, baudrate, count, data) {
 
     this.format = '<IHBBB70s';
-    this.id = mavlink2.MAVLINK_MSG_ID_SERIAL_CONTROL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SERIAL_CONTROL;
     this.order_map = [2, 3, 1, 0, 4, 5];
     this.crc_extra = 220;
     this.name = 'SERIAL_CONTROL';
@@ -7510,7 +7511,7 @@ the GPS is reporting
 mavlink2.messages.gps_rtk = function(time_last_baseline_ms, rtk_receiver_id, wn, tow, rtk_health, rtk_rate, nsats, baseline_coords_type, baseline_a_mm, baseline_b_mm, baseline_c_mm, accuracy, iar_num_hypotheses) {
 
     this.format = '<IIiiiIiHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_RTK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_RTK;
     this.order_map = [0, 8, 7, 1, 9, 10, 11, 12, 2, 3, 4, 5, 6];
     this.crc_extra = 25;
     this.name = 'GPS_RTK';
@@ -7550,7 +7551,7 @@ the GPS is reporting
 mavlink2.messages.gps2_rtk = function(time_last_baseline_ms, rtk_receiver_id, wn, tow, rtk_health, rtk_rate, nsats, baseline_coords_type, baseline_a_mm, baseline_b_mm, baseline_c_mm, accuracy, iar_num_hypotheses) {
 
     this.format = '<IIiiiIiHBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS2_RTK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS2_RTK;
     this.order_map = [0, 8, 7, 1, 9, 10, 11, 12, 2, 3, 4, 5, 6];
     this.crc_extra = 226;
     this.name = 'GPS2_RTK';
@@ -7587,7 +7588,7 @@ contain the scaled values to the described units
 mavlink2.messages.scaled_imu3 = function(time_boot_ms, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag) {
 
     this.format = '<Ihhhhhhhhh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_IMU3;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_IMU3;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
     this.crc_extra = 46;
     this.name = 'SCALED_IMU3';
@@ -7622,7 +7623,7 @@ https://mavlink.io/en/services/image_transmission.html.
 mavlink2.messages.data_transmission_handshake = function(type, size, width, height, packets, payload, jpg_quality) {
 
     this.format = '<IHHHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DATA_TRANSMISSION_HANDSHAKE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DATA_TRANSMISSION_HANDSHAKE;
     this.order_map = [4, 0, 1, 2, 3, 5, 6];
     this.crc_extra = 29;
     this.name = 'DATA_TRANSMISSION_HANDSHAKE';
@@ -7651,7 +7652,7 @@ https://mavlink.io/en/services/image_transmission.html.
 mavlink2.messages.encapsulated_data = function(seqnr, data) {
 
     this.format = '<H253s';
-    this.id = mavlink2.MAVLINK_MSG_ID_ENCAPSULATED_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ENCAPSULATED_DATA;
     this.order_map = [0, 1];
     this.crc_extra = 223;
     this.name = 'ENCAPSULATED_DATA';
@@ -7688,7 +7689,7 @@ Distance sensor information for an onboard rangefinder.
 mavlink2.messages.distance_sensor = function(time_boot_ms, min_distance, max_distance, current_distance, type, id, orientation, covariance, horizontal_fov, vertical_fov, quaternion) {
 
     this.format = '<IHHHBBBBff4f';
-    this.id = mavlink2.MAVLINK_MSG_ID_DISTANCE_SENSOR;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DISTANCE_SENSOR;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.crc_extra = 85;
     this.name = 'DISTANCE_SENSOR';
@@ -7718,7 +7719,7 @@ Request for terrain data and terrain status
 mavlink2.messages.terrain_request = function(lat, lon, grid_spacing, mask) {
 
     this.format = '<QiiH';
-    this.id = mavlink2.MAVLINK_MSG_ID_TERRAIN_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TERRAIN_REQUEST;
     this.order_map = [1, 2, 3, 0];
     this.crc_extra = 6;
     this.name = 'TERRAIN_REQUEST';
@@ -7750,7 +7751,7 @@ same as a lat/lon from a TERRAIN_REQUEST
 mavlink2.messages.terrain_data = function(lat, lon, grid_spacing, gridbit, data) {
 
     this.format = '<iiH16hB';
-    this.id = mavlink2.MAVLINK_MSG_ID_TERRAIN_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TERRAIN_DATA;
     this.order_map = [0, 1, 2, 4, 3];
     this.crc_extra = 229;
     this.name = 'TERRAIN_DATA';
@@ -7780,7 +7781,7 @@ mission.
 mavlink2.messages.terrain_check = function(lat, lon) {
 
     this.format = '<ii';
-    this.id = mavlink2.MAVLINK_MSG_ID_TERRAIN_CHECK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TERRAIN_CHECK;
     this.order_map = [0, 1];
     this.crc_extra = 203;
     this.name = 'TERRAIN_CHECK';
@@ -7813,7 +7814,7 @@ Response from a TERRAIN_CHECK request
 mavlink2.messages.terrain_report = function(lat, lon, spacing, terrain_height, current_height, pending, loaded) {
 
     this.format = '<iiffHHH';
-    this.id = mavlink2.MAVLINK_MSG_ID_TERRAIN_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TERRAIN_REPORT;
     this.order_map = [0, 1, 4, 2, 3, 5, 6];
     this.crc_extra = 1;
     this.name = 'TERRAIN_REPORT';
@@ -7843,7 +7844,7 @@ Barometer readings for 2nd barometer
 mavlink2.messages.scaled_pressure2 = function(time_boot_ms, press_abs, press_diff, temperature) {
 
     this.format = '<Iffh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE2;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE2;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 195;
     this.name = 'SCALED_PRESSURE2';
@@ -7875,7 +7876,7 @@ Motion capture attitude and position
 mavlink2.messages.att_pos_mocap = function(time_usec, q, x, y, z, covariance) {
 
     this.format = '<Q4ffff21f';
-    this.id = mavlink2.MAVLINK_MSG_ID_ATT_POS_MOCAP;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ATT_POS_MOCAP;
     this.order_map = [0, 1, 2, 3, 4, 5];
     this.crc_extra = 109;
     this.name = 'ATT_POS_MOCAP';
@@ -7906,7 +7907,7 @@ Set the vehicle attitude and body angular rates.
 mavlink2.messages.set_actuator_control_target = function(time_usec, group_mlx, target_system, target_component, controls) {
 
     this.format = '<Q8fBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_ACTUATOR_CONTROL_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_ACTUATOR_CONTROL_TARGET;
     this.order_map = [0, 2, 3, 4, 1];
     this.crc_extra = 168;
     this.name = 'SET_ACTUATOR_CONTROL_TARGET';
@@ -7935,7 +7936,7 @@ Set the vehicle attitude and body angular rates.
 mavlink2.messages.actuator_control_target = function(time_usec, group_mlx, controls) {
 
     this.format = '<Q8fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ACTUATOR_CONTROL_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ACTUATOR_CONTROL_TARGET;
     this.order_map = [0, 2, 1];
     this.crc_extra = 181;
     this.name = 'ACTUATOR_CONTROL_TARGET';
@@ -7968,7 +7969,7 @@ The current system altitude.
 mavlink2.messages.altitude = function(time_usec, altitude_monotonic, altitude_amsl, altitude_local, altitude_relative, altitude_terrain, bottom_clearance) {
 
     this.format = '<Qffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_ALTITUDE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ALTITUDE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 47;
     this.name = 'ALTITUDE';
@@ -8000,7 +8001,7 @@ data)
 mavlink2.messages.resource_request = function(request_id, uri_type, uri, transfer_type, storage) {
 
     this.format = '<BB120sB120s';
-    this.id = mavlink2.MAVLINK_MSG_ID_RESOURCE_REQUEST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_RESOURCE_REQUEST;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 72;
     this.name = 'RESOURCE_REQUEST';
@@ -8030,7 +8031,7 @@ Barometer readings for 3rd barometer
 mavlink2.messages.scaled_pressure3 = function(time_boot_ms, press_abs, press_diff, temperature) {
 
     this.format = '<Iffh';
-    this.id = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE3;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SCALED_PRESSURE3;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 131;
     this.name = 'SCALED_PRESSURE3';
@@ -8067,7 +8068,7 @@ Current motion information from a designated system
 mavlink2.messages.follow_target = function(timestamp, est_capabilities, lat, lon, alt, vel, acc, attitude_q, rates, position_cov, custom_state) {
 
     this.format = '<QQiif3f3f4f3f3fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_FOLLOW_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FOLLOW_TARGET;
     this.order_map = [0, 10, 2, 3, 4, 5, 6, 7, 8, 9, 1];
     this.crc_extra = 127;
     this.name = 'FOLLOW_TARGET';
@@ -8111,7 +8112,7 @@ the system.
 mavlink2.messages.control_system_state = function(time_usec, x_acc, y_acc, z_acc, x_vel, y_vel, z_vel, x_pos, y_pos, z_pos, airspeed, vel_variance, pos_variance, q, roll_rate, pitch_rate, yaw_rate) {
 
     this.format = '<Qffffffffff3f3f4ffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_CONTROL_SYSTEM_STATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CONTROL_SYSTEM_STATE;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     this.crc_extra = 103;
     this.name = 'CONTROL_SYSTEM_STATE';
@@ -8149,7 +8150,7 @@ status. Use SMART_BATTERY_* messages instead for smart batteries.
 mavlink2.messages.battery_status = function(id, battery_function, type, temperature, voltages, current_battery, current_consumed, energy_consumed, battery_remaining, time_remaining, charge_state) {
 
     this.format = '<iih10HhBBBbiB';
-    this.id = mavlink2.MAVLINK_MSG_ID_BATTERY_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_BATTERY_STATUS;
     this.order_map = [5, 6, 7, 2, 3, 4, 0, 1, 8, 9, 10];
     this.crc_extra = 154;
     this.name = 'BATTERY_STATUS';
@@ -8187,7 +8188,7 @@ Version and capability of autopilot software
 mavlink2.messages.autopilot_version = function(capabilities, flight_sw_version, middleware_sw_version, os_sw_version, board_version, flight_custom_version, middleware_custom_version, os_custom_version, vendor_id, product_id, uid, uid2) {
 
     this.format = '<QQIIIIHH8s8s8s18s';
-    this.id = mavlink2.MAVLINK_MSG_ID_AUTOPILOT_VERSION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_AUTOPILOT_VERSION;
     this.order_map = [0, 2, 3, 4, 5, 8, 9, 10, 6, 7, 1, 11];
     this.crc_extra = 178;
     this.name = 'AUTOPILOT_VERSION';
@@ -8228,7 +8229,7 @@ https://mavlink.io/en/services/landing_target.html
 mavlink2.messages.landing_target = function(time_usec, target_num, frame, angle_x, angle_y, distance, size_x, size_y, x, y, z, q, type, position_valid) {
 
     this.format = '<QfffffBBfff4fBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LANDING_TARGET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LANDING_TARGET;
     this.order_map = [0, 6, 7, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13];
     this.crc_extra = 200;
     this.name = 'LANDING_TARGET';
@@ -8275,7 +8276,7 @@ should be optional and controllable by the user.
 mavlink2.messages.estimator_status = function(time_usec, flags, vel_ratio, pos_horiz_ratio, pos_vert_ratio, mag_ratio, hagl_ratio, tas_ratio, pos_horiz_accuracy, pos_vert_accuracy) {
 
     this.format = '<QffffffffH';
-    this.id = mavlink2.MAVLINK_MSG_ID_ESTIMATOR_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ESTIMATOR_STATUS;
     this.order_map = [0, 9, 1, 2, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 163;
     this.name = 'ESTIMATOR_STATUS';
@@ -8310,7 +8311,7 @@ Wind covariance estimate from vehicle.
 mavlink2.messages.wind_cov = function(time_usec, wind_x, wind_y, wind_z, var_horiz, var_vert, wind_alt, horiz_accuracy, vert_accuracy) {
 
     this.format = '<Qffffffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_WIND_COV;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_WIND_COV;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     this.crc_extra = 105;
     this.name = 'WIND_COV';
@@ -8355,7 +8356,7 @@ This is NOT the global position estimate of the system.
 mavlink2.messages.gps_input = function(time_usec, gps_id, ignore_flags, time_week_ms, time_week, fix_type, lat, lon, alt, hdop, vdop, vn, ve, vd, speed_accuracy, horiz_accuracy, vert_accuracy, satellites_visible) {
 
     this.format = '<QIiifffffffffHHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_INPUT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_INPUT;
     this.order_map = [0, 15, 13, 1, 14, 16, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 17];
     this.crc_extra = 151;
     this.name = 'GPS_INPUT';
@@ -8384,7 +8385,7 @@ RTCM message for injecting into the onboard GPS (used for DGPS)
 mavlink2.messages.gps_rtcm_data = function(flags, len, data) {
 
     this.format = '<BB180s';
-    this.id = mavlink2.MAVLINK_MSG_ID_GPS_RTCM_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_GPS_RTCM_DATA;
     this.order_map = [0, 1, 2];
     this.crc_extra = 35;
     this.name = 'GPS_RTCM_DATA';
@@ -8434,7 +8435,7 @@ Message appropriate for high latency connections like Iridium
 mavlink2.messages.high_latency = function(base_mode, custom_mode, landed_state, roll, pitch, heading, throttle, heading_sp, latitude, longitude, altitude_amsl, altitude_sp, airspeed, airspeed_sp, groundspeed, climb_rate, gps_nsat, gps_fix_type, battery_remaining, temperature, temperature_air, failsafe, wp_num, wp_distance) {
 
     this.format = '<IiihhHhhhHBBbBBBbBBBbbBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIGH_LATENCY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIGH_LATENCY;
     this.order_map = [10, 0, 11, 3, 4, 5, 12, 6, 1, 2, 7, 8, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 9];
     this.crc_extra = 150;
     this.name = 'HIGH_LATENCY';
@@ -8488,7 +8489,7 @@ Message appropriate for high latency connections like Iridium (version
 mavlink2.messages.high_latency2 = function(timestamp, type, autopilot, custom_mode, latitude, longitude, altitude, target_altitude, heading, target_heading, target_distance, throttle, airspeed, airspeed_sp, groundspeed, windspeed, wind_heading, eph, epv, temperature_air, climb_rate, battery, wp_num, failure_flags, custom0, custom1, custom2) {
 
     this.format = '<IiiHhhHHHBBBBBBBBBBBBbbbbbb';
-    this.id = mavlink2.MAVLINK_MSG_ID_HIGH_LATENCY2;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HIGH_LATENCY2;
     this.order_map = [0, 9, 10, 3, 1, 2, 4, 5, 11, 12, 6, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 7, 8, 24, 25, 26];
     this.crc_extra = 179;
     this.name = 'HIGH_LATENCY2';
@@ -8521,7 +8522,7 @@ Vibration levels and accelerometer clipping
 mavlink2.messages.vibration = function(time_usec, vibration_x, vibration_y, vibration_z, clipping_0, clipping_1, clipping_2) {
 
     this.format = '<QfffIII';
-    this.id = mavlink2.MAVLINK_MSG_ID_VIBRATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VIBRATION;
     this.order_map = [0, 1, 2, 3, 4, 5, 6];
     this.crc_extra = 90;
     this.name = 'VIBRATION';
@@ -8568,7 +8569,7 @@ flight mode and then perform a landing sequence along the vector.
 mavlink2.messages.home_position = function(latitude, longitude, altitude, x, y, z, q, approach_x, approach_y, approach_z, time_usec) {
 
     this.format = '<iiifff4ffffQ';
-    this.id = mavlink2.MAVLINK_MSG_ID_HOME_POSITION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_HOME_POSITION;
     this.order_map = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     this.crc_extra = 104;
     this.name = 'HOME_POSITION';
@@ -8614,7 +8615,7 @@ flight mode and then perform a landing sequence along the vector.
 mavlink2.messages.set_home_position = function(target_system, latitude, longitude, altitude, x, y, z, q, approach_x, approach_y, approach_z, time_usec) {
 
     this.format = '<iiifff4ffffBQ';
-    this.id = mavlink2.MAVLINK_MSG_ID_SET_HOME_POSITION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SET_HOME_POSITION;
     this.order_map = [10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11];
     this.crc_extra = 85;
     this.name = 'SET_HOME_POSITION';
@@ -8643,7 +8644,7 @@ This interface replaces DATA_STREAM
 mavlink2.messages.message_interval = function(message_id, interval_us) {
 
     this.format = '<iH';
-    this.id = mavlink2.MAVLINK_MSG_ID_MESSAGE_INTERVAL;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MESSAGE_INTERVAL;
     this.order_map = [1, 0];
     this.crc_extra = 95;
     this.name = 'MESSAGE_INTERVAL';
@@ -8671,7 +8672,7 @@ Provides state for additional features
 mavlink2.messages.extended_sys_state = function(vtol_state, landed_state) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_EXTENDED_SYS_STATE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_EXTENDED_SYS_STATE;
     this.order_map = [0, 1];
     this.crc_extra = 130;
     this.name = 'EXTENDED_SYS_STATE';
@@ -8710,7 +8711,7 @@ The location and information of an ADSB vehicle
 mavlink2.messages.adsb_vehicle = function(ICAO_address, lat, lon, altitude_type, altitude, heading, hor_velocity, ver_velocity, callsign, emitter_type, tslc, flags, squawk) {
 
     this.format = '<IiiiHHhHHB9sBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ADSB_VEHICLE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ADSB_VEHICLE;
     this.order_map = [0, 1, 2, 9, 3, 4, 5, 6, 10, 11, 12, 7, 8];
     this.crc_extra = 184;
     this.name = 'ADSB_VEHICLE';
@@ -8743,7 +8744,7 @@ Information about a potential collision
 mavlink2.messages.collision = function(src, id, action, threat_level, time_to_minimum_delta, altitude_minimum_delta, horizontal_minimum_delta) {
 
     this.format = '<IfffBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_COLLISION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_COLLISION;
     this.order_map = [4, 0, 5, 6, 1, 2, 3];
     this.crc_extra = 81;
     this.name = 'COLLISION';
@@ -8775,7 +8776,7 @@ transitional support.
 mavlink2.messages.v2_extension = function(target_network, target_system, target_component, message_type, payload) {
 
     this.format = '<HBBB249s';
-    this.id = mavlink2.MAVLINK_MSG_ID_V2_EXTENSION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_V2_EXTENSION;
     this.order_map = [1, 2, 3, 0, 4];
     this.crc_extra = 8;
     this.name = 'V2_EXTENSION';
@@ -8807,7 +8808,7 @@ getting experimental debug output.
 mavlink2.messages.memory_vect = function(address, ver, type, value) {
 
     this.format = '<HBB32s';
-    this.id = mavlink2.MAVLINK_MSG_ID_MEMORY_VECT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MEMORY_VECT;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 204;
     this.name = 'MEMORY_VECT';
@@ -8838,7 +8839,7 @@ To debug something using a named 3D vector.
 mavlink2.messages.debug_vect = function(name, time_usec, x, y, z) {
 
     this.format = '<Qfff10s';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEBUG_VECT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEBUG_VECT;
     this.order_map = [4, 0, 1, 2, 3];
     this.crc_extra = 49;
     this.name = 'DEBUG_VECT';
@@ -8869,7 +8870,7 @@ and getting experimental debug output.
 mavlink2.messages.named_value_float = function(time_boot_ms, name, value) {
 
     this.format = '<If10s';
-    this.id = mavlink2.MAVLINK_MSG_ID_NAMED_VALUE_FLOAT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_NAMED_VALUE_FLOAT;
     this.order_map = [0, 2, 1];
     this.crc_extra = 170;
     this.name = 'NAMED_VALUE_FLOAT';
@@ -8900,7 +8901,7 @@ new messages and getting experimental debug output.
 mavlink2.messages.named_value_int = function(time_boot_ms, name, value) {
 
     this.format = '<Ii10s';
-    this.id = mavlink2.MAVLINK_MSG_ID_NAMED_VALUE_INT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_NAMED_VALUE_INT;
     this.order_map = [0, 2, 1];
     this.crc_extra = 44;
     this.name = 'NAMED_VALUE_INT';
@@ -8932,7 +8933,7 @@ limited rate (e.g. 10 Hz).
 mavlink2.messages.statustext = function(severity, text) {
 
     this.format = '<B50s';
-    this.id = mavlink2.MAVLINK_MSG_ID_STATUSTEXT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_STATUSTEXT;
     this.order_map = [0, 1];
     this.crc_extra = 83;
     this.name = 'STATUSTEXT';
@@ -8962,7 +8963,7 @@ These values show up in the plot of QGroundControl as DEBUG N.
 mavlink2.messages.debug = function(time_boot_ms, ind, value) {
 
     this.format = '<IfB';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEBUG;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEBUG;
     this.order_map = [0, 2, 1];
     this.crc_extra = 46;
     this.name = 'DEBUG';
@@ -8993,7 +8994,7 @@ and zero initial_timestamp will disable signing
 mavlink2.messages.setup_signing = function(target_system, target_component, secret_key, initial_timestamp) {
 
     this.format = '<QBB32s';
-    this.id = mavlink2.MAVLINK_MSG_ID_SETUP_SIGNING;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SETUP_SIGNING;
     this.order_map = [1, 2, 3, 0];
     this.crc_extra = 71;
     this.name = 'SETUP_SIGNING';
@@ -9022,7 +9023,7 @@ Report button state change.
 mavlink2.messages.button_change = function(time_boot_ms, last_change_ms, state) {
 
     this.format = '<IIB';
-    this.id = mavlink2.MAVLINK_MSG_ID_BUTTON_CHANGE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_BUTTON_CHANGE;
     this.order_map = [0, 1, 2];
     this.crc_extra = 131;
     this.name = 'BUTTON_CHANGE';
@@ -9052,7 +9053,7 @@ Control vehicle tone generation (buzzer)
 mavlink2.messages.play_tune = function(target_system, target_component, tune, tune2) {
 
     this.format = '<BB30s200s';
-    this.id = mavlink2.MAVLINK_MSG_ID_PLAY_TUNE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PLAY_TUNE;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 187;
     this.name = 'PLAY_TUNE';
@@ -9091,7 +9092,7 @@ Information about a camera
 mavlink2.messages.camera_information = function(time_boot_ms, vendor_name, model_name, firmware_version, focal_length, sensor_size_h, sensor_size_v, resolution_h, resolution_v, lens_id, flags, cam_definition_version, cam_definition_uri) {
 
     this.format = '<IIfffIHHH32s32sB140s';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_INFORMATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_INFORMATION;
     this.order_map = [0, 9, 10, 1, 2, 3, 4, 6, 7, 11, 5, 8, 12];
     this.crc_extra = 92;
     this.name = 'CAMERA_INFORMATION';
@@ -9122,7 +9123,7 @@ MAV_CMD_REQUEST_CAMERA_SETTINGS.
 mavlink2.messages.camera_settings = function(time_boot_ms, mode_id, zoomLevel, focusLevel) {
 
     this.format = '<IBff';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_SETTINGS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_SETTINGS;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 146;
     this.name = 'CAMERA_SETTINGS';
@@ -9157,7 +9158,7 @@ Information about a storage medium.
 mavlink2.messages.storage_information = function(time_boot_ms, storage_id, storage_count, status, total_capacity, used_capacity, available_capacity, read_speed, write_speed) {
 
     this.format = '<IfffffBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_STORAGE_INFORMATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_STORAGE_INFORMATION;
     this.order_map = [0, 6, 7, 8, 1, 2, 3, 4, 5];
     this.crc_extra = 179;
     this.name = 'STORAGE_INFORMATION';
@@ -9189,7 +9190,7 @@ Information about the status of a capture.
 mavlink2.messages.camera_capture_status = function(time_boot_ms, image_status, video_status, image_interval, recording_time_ms, available_capacity) {
 
     this.format = '<IfIfBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_CAPTURE_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_CAPTURE_STATUS;
     this.order_map = [0, 4, 5, 1, 2, 3];
     this.crc_extra = 12;
     this.name = 'CAMERA_CAPTURE_STATUS';
@@ -9226,7 +9227,7 @@ Information about a captured image
 mavlink2.messages.camera_image_captured = function(time_boot_ms, time_utc, camera_id, lat, lon, alt, relative_alt, q, image_index, capture_result, file_url) {
 
     this.format = '<QIiiii4fiBb205s';
-    this.id = mavlink2.MAVLINK_MSG_ID_CAMERA_IMAGE_CAPTURED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CAMERA_IMAGE_CAPTURED;
     this.order_map = [1, 0, 8, 2, 3, 4, 5, 6, 7, 9, 10];
     this.crc_extra = 133;
     this.name = 'CAMERA_IMAGE_CAPTURED';
@@ -9256,7 +9257,7 @@ Information about flight since last arming.
 mavlink2.messages.flight_information = function(time_boot_ms, arming_time_utc, takeoff_time_utc, flight_uuid) {
 
     this.format = '<QQQI';
-    this.id = mavlink2.MAVLINK_MSG_ID_FLIGHT_INFORMATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_FLIGHT_INFORMATION;
     this.order_map = [3, 0, 1, 2];
     this.crc_extra = 49;
     this.name = 'FLIGHT_INFORMATION';
@@ -9287,7 +9288,7 @@ Orientation of a mount
 mavlink2.messages.mount_orientation = function(time_boot_ms, roll, pitch, yaw, yaw_absolute) {
 
     this.format = '<Iffff';
-    this.id = mavlink2.MAVLINK_MSG_ID_MOUNT_ORIENTATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_MOUNT_ORIENTATION;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 26;
     this.name = 'MOUNT_ORIENTATION';
@@ -9319,7 +9320,7 @@ A message containing logged data (see also MAV_CMD_LOGGING_START)
 mavlink2.messages.logging_data = function(target_system, target_component, sequence, length, first_message_offset, data) {
 
     this.format = '<HBBBB249s';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOGGING_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOGGING_DATA;
     this.order_map = [1, 2, 0, 3, 4, 5];
     this.crc_extra = 193;
     this.name = 'LOGGING_DATA';
@@ -9352,7 +9353,7 @@ sent back
 mavlink2.messages.logging_data_acked = function(target_system, target_component, sequence, length, first_message_offset, data) {
 
     this.format = '<HBBBB249s';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOGGING_DATA_ACKED;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOGGING_DATA_ACKED;
     this.order_map = [1, 2, 0, 3, 4, 5];
     this.crc_extra = 35;
     this.name = 'LOGGING_DATA_ACKED';
@@ -9381,7 +9382,7 @@ An ack for a LOGGING_DATA_ACKED message
 mavlink2.messages.logging_ack = function(target_system, target_component, sequence) {
 
     this.format = '<HBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_LOGGING_ACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_LOGGING_ACK;
     this.order_map = [1, 2, 0];
     this.crc_extra = 14;
     this.name = 'LOGGING_ACK';
@@ -9419,7 +9420,7 @@ Information about video stream
 mavlink2.messages.video_stream_information = function(stream_id, count, type, flags, framerate, resolution_h, resolution_v, bitrate, rotation, hfov, name, uri) {
 
     this.format = '<fIHHHHHBBB32s160s';
-    this.id = mavlink2.MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION;
     this.order_map = [7, 8, 9, 2, 0, 3, 4, 1, 5, 6, 10, 11];
     this.crc_extra = 109;
     this.name = 'VIDEO_STREAM_INFORMATION';
@@ -9453,7 +9454,7 @@ Information about the status of a video stream.
 mavlink2.messages.video_stream_status = function(stream_id, flags, framerate, resolution_h, resolution_v, bitrate, rotation, hfov) {
 
     this.format = '<fIHHHHHB';
-    this.id = mavlink2.MAVLINK_MSG_ID_VIDEO_STREAM_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_VIDEO_STREAM_STATUS;
     this.order_map = [7, 2, 0, 3, 4, 1, 5, 6];
     this.crc_extra = 59;
     this.name = 'VIDEO_STREAM_STATUS';
@@ -9481,7 +9482,7 @@ Configure AP SSID and Password.
 mavlink2.messages.wifi_config_ap = function(ssid, password) {
 
     this.format = '<32s64s';
-    this.id = mavlink2.MAVLINK_MSG_ID_WIFI_CONFIG_AP;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_WIFI_CONFIG_AP;
     this.order_map = [0, 1];
     this.crc_extra = 19;
     this.name = 'WIFI_CONFIG_AP';
@@ -9518,7 +9519,7 @@ core to respond directly.
 mavlink2.messages.protocol_version = function(version, min_version, max_version, spec_version_hash, library_version_hash) {
 
     this.format = '<HHH8s8s';
-    this.id = mavlink2.MAVLINK_MSG_ID_PROTOCOL_VERSION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PROTOCOL_VERSION;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 217;
     this.name = 'PROTOCOL_VERSION';
@@ -9553,7 +9554,7 @@ http://uavcan.org.
 mavlink2.messages.uavcan_node_status = function(time_usec, uptime_sec, health, mode, sub_mode, vendor_specific_status_code) {
 
     this.format = '<QIHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_UAVCAN_NODE_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UAVCAN_NODE_STATUS;
     this.order_map = [0, 1, 3, 4, 5, 2];
     this.crc_extra = 28;
     this.name = 'UAVCAN_NODE_STATUS';
@@ -9595,7 +9596,7 @@ frequency. The UAVCAN specification is available at http://uavcan.org.
 mavlink2.messages.uavcan_node_info = function(time_usec, uptime_sec, name, hw_version_major, hw_version_minor, hw_unique_id, sw_version_major, sw_version_minor, sw_vcs_commit) {
 
     this.format = '<QII80sBB16sBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_UAVCAN_NODE_INFO;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UAVCAN_NODE_INFO;
     this.order_map = [0, 1, 3, 4, 5, 6, 7, 8, 2];
     this.crc_extra = 95;
     this.name = 'UAVCAN_NODE_INFO';
@@ -9626,7 +9627,7 @@ string id or param_index.
 mavlink2.messages.param_ext_request_read = function(target_system, target_component, param_id, param_index) {
 
     this.format = '<hBB16s';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_REQUEST_READ;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_REQUEST_READ;
     this.order_map = [1, 2, 3, 0];
     this.crc_extra = 243;
     this.name = 'PARAM_EXT_REQUEST_READ';
@@ -9655,7 +9656,7 @@ parameters are emitted.
 mavlink2.messages.param_ext_request_list = function(target_system, target_component) {
 
     this.format = '<BB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_REQUEST_LIST;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_REQUEST_LIST;
     this.order_map = [0, 1];
     this.crc_extra = 88;
     this.name = 'PARAM_EXT_REQUEST_LIST';
@@ -9689,7 +9690,7 @@ after a loss or timeout.
 mavlink2.messages.param_ext_value = function(param_id, param_value, param_type, param_count, param_index) {
 
     this.format = '<HH16s128sB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_VALUE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_VALUE;
     this.order_map = [2, 3, 4, 0, 1];
     this.crc_extra = 243;
     this.name = 'PARAM_EXT_VALUE';
@@ -9725,7 +9726,7 @@ PARAM_ACK_IN_PROGRESS in response.
 mavlink2.messages.param_ext_set = function(target_system, target_component, param_id, param_value, param_type) {
 
     this.format = '<BB16s128sB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_SET;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_SET;
     this.order_map = [0, 1, 2, 3, 4];
     this.crc_extra = 78;
     this.name = 'PARAM_EXT_SET';
@@ -9755,7 +9756,7 @@ Response from a PARAM_EXT_SET message.
 mavlink2.messages.param_ext_ack = function(param_id, param_value, param_type, param_result) {
 
     this.format = '<16s128sBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_ACK;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_PARAM_EXT_ACK;
     this.order_map = [0, 1, 2, 3];
     this.crc_extra = 132;
     this.name = 'PARAM_EXT_ACK';
@@ -9788,7 +9789,7 @@ increment degrees to the right
 mavlink2.messages.obstacle_distance = function(time_usec, sensor_type, distances, increment, min_distance, max_distance) {
 
     this.format = '<Q72HHHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_OBSTACLE_DISTANCE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_OBSTACLE_DISTANCE;
     this.order_map = [0, 4, 1, 5, 2, 3];
     this.crc_extra = 23;
     this.name = 'OBSTACLE_DISTANCE';
@@ -9831,7 +9832,7 @@ interface. Fits ROS REP 147 standard for aerial vehicles
 mavlink2.messages.odometry = function(time_usec, frame_id, child_frame_id, x, y, z, q, vx, vy, vz, rollspeed, pitchspeed, yawspeed, pose_covariance, velocity_covariance) {
 
     this.format = '<Qfff4fffffff21f21fBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ODOMETRY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ODOMETRY;
     this.order_map = [0, 13, 14, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     this.crc_extra = 91;
     this.name = 'ODOMETRY';
@@ -9871,7 +9872,7 @@ frame.
 mavlink2.messages.trajectory_representation_waypoints = function(time_usec, valid_points, pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, acc_x, acc_y, acc_z, pos_yaw, vel_yaw) {
 
     this.format = '<Q5f5f5f5f5f5f5f5f5f5f5fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_TRAJECTORY_REPRESENTATION_WAYPOINTS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TRAJECTORY_REPRESENTATION_WAYPOINTS;
     this.order_map = [0, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
     this.crc_extra = 91;
     this.name = 'TRAJECTORY_REPRESENTATION_WAYPOINTS';
@@ -9905,7 +9906,7 @@ local frame.
 mavlink2.messages.trajectory_representation_bezier = function(time_usec, valid_points, pos_x, pos_y, pos_z, delta, pos_yaw) {
 
     this.format = '<Q5f5f5f5f5fB';
-    this.id = mavlink2.MAVLINK_MSG_ID_TRAJECTORY_REPRESENTATION_BEZIER;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_TRAJECTORY_REPRESENTATION_BEZIER;
     this.order_map = [0, 6, 1, 2, 3, 4, 5];
     this.crc_extra = 231;
     this.name = 'TRAJECTORY_REPRESENTATION_BEZIER';
@@ -9938,7 +9939,7 @@ Report current used cellular network status
 mavlink2.messages.cellular_status = function(status, type, quality, mcc, mnc, lac, cid) {
 
     this.format = '<IHHHHBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_CELLULAR_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_CELLULAR_STATUS;
     this.order_map = [1, 5, 6, 2, 3, 4, 0];
     this.crc_extra = 135;
     this.name = 'CELLULAR_STATUS';
@@ -9982,7 +9983,7 @@ The global position resulting from GPS and sensor fusion.
 mavlink2.messages.utm_global_position = function(time, uas_id, lat, lon, alt, relative_alt, vx, vy, vz, h_acc, v_acc, vel_acc, next_lat, next_lon, next_alt, update_rate, flight_state, flags) {
 
     this.format = '<QiiiiiiihhhHHHH18sBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_UTM_GLOBAL_POSITION;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UTM_GLOBAL_POSITION;
     this.order_map = [0, 15, 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 5, 6, 7, 14, 16, 17];
     this.crc_extra = 99;
     this.name = 'UTM_GLOBAL_POSITION';
@@ -10015,7 +10016,7 @@ discriminate between messages in code and in user interfaces
 mavlink2.messages.debug_float_array = function(time_usec, name, array_id, data) {
 
     this.format = '<QH10s58f';
-    this.id = mavlink2.MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_DEBUG_FLOAT_ARRAY;
     this.order_map = [0, 2, 1, 3];
     this.crc_extra = 232;
     this.name = 'DEBUG_FLOAT_ARRAY';
@@ -10048,7 +10049,7 @@ progress (see MAV_CMD_DO_ORBIT).
 mavlink2.messages.orbit_execution_status = function(time_usec, radius, frame, x, y, z) {
 
     this.format = '<QfiifB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ORBIT_EXECUTION_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ORBIT_EXECUTION_STATUS;
     this.order_map = [0, 1, 5, 2, 3, 4];
     this.crc_extra = 11;
     this.name = 'ORBIT_EXECUTION_STATUS';
@@ -10079,7 +10080,7 @@ intended as a less restrictive replacement for STATUSTEXT.
 mavlink2.messages.statustext_long = function(severity, text) {
 
     this.format = '<B254s';
-    this.id = mavlink2.MAVLINK_MSG_ID_STATUSTEXT_LONG;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_STATUSTEXT_LONG;
     this.order_map = [0, 1];
     this.crc_extra = 36;
     this.name = 'STATUSTEXT_LONG';
@@ -10117,7 +10118,7 @@ of BATTERY_STATUS for smart batteries.
 mavlink2.messages.smart_battery_info = function(id, capacity_full_specification, capacity_full, cycle_count, serial_number, device_name, weight, discharge_minimum_voltage, charging_minimum_voltage, resting_minimum_voltage) {
 
     this.format = '<iiiHHHHHB50s';
-    this.id = mavlink2.MAVLINK_MSG_ID_SMART_BATTERY_INFO;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SMART_BATTERY_INFO;
     this.order_map = [8, 0, 1, 3, 2, 9, 4, 5, 6, 7];
     this.crc_extra = 98;
     this.name = 'SMART_BATTERY_INFO';
@@ -10153,7 +10154,7 @@ BATTERY_STATUS for smart batteries.
 mavlink2.messages.smart_battery_status = function(id, capacity_remaining, current, temperature, fault_bitmask, time_remaining, cell_offset, voltages) {
 
     this.format = '<iiHhhhH16H';
-    this.id = mavlink2.MAVLINK_MSG_ID_SMART_BATTERY_STATUS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_SMART_BATTERY_STATUS;
     this.order_map = [2, 3, 4, 5, 0, 1, 6, 7];
     this.crc_extra = 161;
     this.name = 'SMART_BATTERY_STATUS';
@@ -10182,7 +10183,7 @@ Cumulative distance traveled for each reported wheel.
 mavlink2.messages.wheel_distance = function(time_usec, count, distance) {
 
     this.format = '<Q16dB';
-    this.id = mavlink2.MAVLINK_MSG_ID_WHEEL_DISTANCE;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_WHEEL_DISTANCE;
     this.order_map = [0, 2, 1];
     this.crc_extra = 113;
     this.name = 'WHEEL_DISTANCE';
@@ -10217,7 +10218,7 @@ a POR and every 10 sec thereafter)
 mavlink2.messages.uavionix_adsb_out_cfg = function(ICAO, callsign, emitterType, aircraftSize, gpsOffsetLat, gpsOffsetLon, stallSpeed, rfSelect) {
 
     this.format = '<IH9sBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_CFG;
     this.order_map = [0, 2, 3, 4, 5, 6, 1, 7];
     this.crc_extra = 209;
     this.name = 'UAVIONIX_ADSB_OUT_CFG';
@@ -10259,7 +10260,7 @@ Dynamic data used to generate ADS-B out transponder data (send at 5Hz)
 mavlink2.messages.uavionix_adsb_out_dynamic = function(utcTime, gpsLat, gpsLon, gpsAlt, gpsFix, numSats, baroAltMSL, accuracyHor, accuracyVert, accuracyVel, velVert, velNS, VelEW, emergencyStatus, state, squawk) {
 
     this.format = '<IiiiiIHHhhhHHBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_DYNAMIC;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_OUT_DYNAMIC;
     this.order_map = [0, 1, 2, 3, 13, 14, 4, 5, 6, 7, 8, 9, 10, 15, 11, 12];
     this.crc_extra = 186;
     this.name = 'UAVIONIX_ADSB_OUT_DYNAMIC';
@@ -10286,7 +10287,7 @@ Transceiver heartbeat with health report (updated every 10s)
 mavlink2.messages.uavionix_adsb_transceiver_health_report = function(rfHealth) {
 
     this.format = '<B';
-    this.id = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT;
     this.order_map = [0];
     this.crc_extra = 4;
     this.name = 'UAVIONIX_ADSB_TRANSCEIVER_HEALTH_REPORT';
@@ -10313,7 +10314,7 @@ ICAROUS heartbeat
 mavlink2.messages.icarous_heartbeat = function(status) {
 
     this.format = '<B';
-    this.id = mavlink2.MAVLINK_MSG_ID_ICAROUS_HEARTBEAT;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ICAROUS_HEARTBEAT;
     this.order_map = [0];
     this.crc_extra = 227;
     this.name = 'ICAROUS_HEARTBEAT';
@@ -10355,7 +10356,7 @@ Kinematic multi bands (track) output from Daidalus
 mavlink2.messages.icarous_kinematic_bands = function(numBands, type1, min1, max1, type2, min2, max2, type3, min3, max3, type4, min4, max4, type5, min5, max5) {
 
     this.format = '<ffffffffffbBBBBB';
-    this.id = mavlink2.MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_ICAROUS_KINEMATIC_BANDS;
     this.order_map = [10, 11, 0, 1, 12, 2, 3, 13, 4, 5, 14, 6, 7, 15, 8, 9];
     this.crc_extra = 239;
     this.name = 'ICAROUS_KINEMATIC_BANDS';
@@ -10619,7 +10620,7 @@ mavlink2.map = {
 
 // Special mavlink message to capture malformed data packets for debugging
 mavlink2.messages.bad_data = function(data, reason) {
-    this.id = mavlink2.MAVLINK_MSG_ID_BAD_DATA;
+    this.msgID = mavlink2.MAVLINK_MSG_ID_BAD_DATA;
     this.data = data;
     this.reason = reason;
     this.msgbuf = data;

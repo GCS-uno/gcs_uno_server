@@ -10,13 +10,16 @@ const common_config = require('../configs/common_config')
      ,RK = require('./../defs/redis_keys')
      ,IK = require('./../defs/io_keys')
      ,_ = require('lodash')
+     ,fs = require('fs')
+     ,nodeUuid = require('node-uuid')
      ,helpers = require('./../utils/helpers')
      ,FlightPlanModel = require('../db_models/FlightPlan')
      ,{FLIGHT_MODES, AUTOPILOTS, FRAME_TYPES, MAV_STATE} = require('../defs/mavlink')
      ,{telem1_fields, telem10_fields} = require('./../defs/io_telemetry_fields')
      ,turf_helpers = require('@turf/helpers')
      ,turf_dist = require('@turf/distance').default
-     ,DroneServersList = {};
+     ,DroneServersList = {}
+     ,FlightLogModel = require('./../db_models/FlightLog');
 
 const io = require('socket.io-emitter')({ host: server_config.REDIS_HOST, port: server_config.REDIS_PORT });
 
@@ -495,7 +498,7 @@ class MissionUploadController {
 //
 // контроллер mavlink
 function MAVLinkController(drone){
-    const mavlink = new MAVLink(drone.params.mav_sys_id, drone.params.mav_cmp_id, drone.params.mav_gcs_sys_id, drone.params.mav_gcs_cmp_id);
+    const mavlink = new MAVLink(drone.data.db_params.mav_sys_id, drone.data.db_params.mav_cmp_id, drone.data.db_params.mav_gcs_sys_id, drone.data.db_params.mav_gcs_cmp_id);
 
     //
     // Подписка на канал Redis с чистым MAVlink
@@ -532,10 +535,10 @@ function MAVLinkController(drone){
 
     // При изменении параметров дрона меняем параметры mavlink
     drone.events.on('paramsChanged', () => {
-        drone.mavlink.sysid = drone.params.mav_sys_id;
-        drone.mavlink.compid = drone.params.mav_cmp_id;
-        drone.mavlink.gcs_sysid = drone.params.mav_gcs_sys_id;
-        drone.mavlink.gcs_compid = drone.params.mav_gcs_cmp_id;
+        drone.mavlink.sysid = drone.data.db_params.mav_sys_id;
+        drone.mavlink.compid = drone.data.db_params.mav_cmp_id;
+        drone.mavlink.gcs_sysid = drone.data.db_params.mav_gcs_sys_id;
+        drone.mavlink.gcs_compid = drone.data.db_params.mav_gcs_cmp_id;
     });
 
     // При удалении и остановке дрона
@@ -657,7 +660,9 @@ class InfoController {
             rHGetAll(_this.drone.data_keys.DRONE_INFO_KEY)
                 .then( res => {
                     _.mapKeys(res, (value, key) => {
-                        _this.data[key] = parseFloat(value) || value; // преобразование строк в числа
+                        if( isNaN(parseFloat(value)) ) _this.data[key] = value;
+                        else if( parseFloat(value) === parseInt(value) ) _this.data[key] = parseInt(value);
+                        else _this.data[key] = parseFloat(value);
                     });
 
                     _this.drone.events.emit('infoLoaded', _this.data);
@@ -699,6 +704,9 @@ class InfoController {
 
     };
 
+    isOnline(){
+        return this.data.online === 1;
+    }
 
 }
 
@@ -873,7 +881,7 @@ class HeartbeatController {
                     }, 100);
                 }
                 // Если в настройках активирован джойстик
-                if( !joystick_interval && drone.params.joystick_enable ) joystick_interval = setInterval( () => {
+                if( !joystick_interval && drone.data.db_params.joystick_enable ) joystick_interval = setInterval( () => {
                     drone.joystick.send2drone();
                 }, 100);
 
@@ -1203,7 +1211,7 @@ class CommandController {
         // Запуск UDP сервера для дрона.
         drone.RPC.on(RK.START_DRONE_UDP(drone.id), (data, channel, response_callback) => {
 
-            const udp_port = parseInt(drone.params.udp_port) || null;
+            const udp_port = parseInt(drone.data.db_params.udp_port) || null;
             if( !udp_port ) return response_callback('UDP port not set');
             if( udp_port < common_config.DRONE_UDP_PORT_MIN || udp_port > common_config.DRONE_UDP_PORT_MAX ) return response_callback('UDP port not allowed');
 
@@ -1228,7 +1236,7 @@ class CommandController {
         // Запуск TCP сервера для GCS
         drone.RPC.on(RK.START_GCS_TCP(drone.id), (data, channel, response_callback) => {
 
-            const tcp_port = parseInt(drone.params.gcs_tcp_port) || null;
+            const tcp_port = parseInt(drone.data.db_params.gcs_tcp_port) || null;
             if( !tcp_port ) return response_callback('TCP port not set');
             if( tcp_port < common_config.GCS_TCP_PORT_MIN || tcp_port > common_config.GCS_TCP_PORT_MAX ) return response_callback('TCP port not allowed');
 
@@ -1437,7 +1445,7 @@ class CommandController {
         }
 
         // Джойстик
-        else if( 'joystick' === data.command && _this.drone.params.joystick_enable ){
+        else if( 'joystick' === data.command && _this.drone.data.db_params.joystick_enable ){
 
             let jlx = parseInt(data.params.jlx) || 0,
                 jly = parseInt(data.params.jly) || 0,
@@ -1472,6 +1480,68 @@ class CommandController {
                     });
                     // Подтверждение отловится в обратном сообщении
                 }
+            }
+
+            // Установка полетного режима Guided у дрона
+            else if( 'md_guided' === data.command ) {
+                // Arducopter
+                if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot ){
+                    this.drone.mavlink.sendMessage('SET_MODE', {
+                        target_system: this.drone.mavlink.sysid
+                        ,base_mode: 81
+                        ,custom_mode: 4
+                    });
+                }
+
+                // TODO PX4 Copter land
+                else {
+
+                }
+
+            }
+
+            // Установка полетного режима Loiter у дрона
+            else if( 'md_loiter' === data.command ) {
+                // Arducopter
+                if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot ){
+                    this.drone.mavlink.sendMessage('SET_MODE', {
+                        target_system: this.drone.mavlink.sysid
+                        ,base_mode: 89
+                        ,custom_mode: 5
+                    });
+                }
+
+                // TODO PX4 Copter land
+                else {
+
+                }
+
+            }
+
+            // Отправка команды Loiter Unlimited
+            else if( 'cm_loiter' === data.command ) {
+                // Arducopter
+                if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot ){
+                    this.drone.mavlink.sendMessage('COMMAND_LONG', {
+                        target_system: this.drone.mavlink.sysid
+                        ,target_component: this.drone.mavlink.compid
+                        ,command: 17 // MAV_CMD -> MAV_CMD_NAV_LOITER_UNLIM
+                        ,confirmation: 0
+                        ,param1: null
+                        ,param2: null
+                        ,param3: null
+                        ,param4: 0
+                        ,param5: null
+                        ,param6: null
+                        ,param7: 10
+                    });
+                }
+
+                // TODO PX4 Copter land
+                else {
+
+                }
+
             }
 
             // ARM / DISARM
@@ -1644,12 +1714,37 @@ class CommandController {
 
             }
 
-            // TODO Управление серво
-            else if( 'move_servo' === data.command ) {
-                /*
+            // Управление серво
+            else if( 'set_servo' === data.command ) {
+                if( !data.params.hasOwnProperty('servo') || parseInt(data.params.servo) < 5 ) return;
 
+                let value = 0;
+                if( data.params.hasOwnProperty('sw') ){
+                    if( parseInt(data.params.sw) ) value = 2000;
+                    else value = 1000;
+                }
+                else if( data.params.hasOwnProperty('value') ){
+                    value = 1000 + 50*parseInt(data.params.value);
+                    if( value > 2000 ) value = 2000;
+                    if( value < 1000 ) value = 1000;
+                }
 
-                 */
+                if( !value ) return;
+
+                this.drone.mavlink.sendMessage('COMMAND_LONG', {
+                    target_system: this.drone.mavlink.sysid
+                    ,target_component: this.drone.mavlink.compid
+                    ,command: 183 // MAV_CMD -> MAV_CMD_DO_SET_SERVO
+                    ,confirmation: 0
+                    ,param1: parseInt(data.params.servo)
+                    ,param2: value
+                    ,param3: null
+                    ,param4: null
+                    ,param5: null
+                    ,param6: null
+                    ,param7: null
+                });
+
             }
 
         }
@@ -1694,46 +1789,117 @@ class JoystickController {
         // Если данные старые, то ничего не отправляем
         if( (helpers.now() - this.last_pos_time) > 3 ) return;
 
-        //console.log('j-1');
+        if( !this.drone.telem1.get('armed') ) return;
 
         //
-        // Arducopter in guided mode
-        if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot && this.drone.telem1.get('armed') && this.drone.telem1.get('mode') === 4 ){
+        // Arducopter
+        if( 'copter' === this.drone.info.get('ac') && 3 === this.drone.data.autopilot ){
 
-            // Если в текущих и предыдущих данных 00, то тоже ничего не отправляем
-            if( 0 === this.last_sent_pos_data.jlx && 0 === this.last_sent_pos_data.jly && 0 === this.last_sent_pos_data.jrx && 0 === this.last_sent_pos_data.jry && 0 === this.pos_data.jlx && 0 === this.pos_data.jly && 0 === this.pos_data.jrx && 0 === this.pos_data.jry ) return;
+            // in guided mode
+            if( this.drone.telem1.get('mode') === 4 || this.drone.telem1.get('mode') === 20 ){
 
-            // Сохранить для сравнения со следующими данными
-            this.last_sent_pos_data.jlx = this.pos_data.jlx;
-            this.last_sent_pos_data.jly = this.pos_data.jly;
-            this.last_sent_pos_data.jrx = this.pos_data.jrx;
-            this.last_sent_pos_data.jry = this.pos_data.jry;
+                // Если в текущих и предыдущих данных 00, то тоже ничего не отправляем
+                if( 0 === this.last_sent_pos_data.jlx && 0 === this.last_sent_pos_data.jly && 0 === this.last_sent_pos_data.jrx && 0 === this.last_sent_pos_data.jry && 0 === this.pos_data.jlx && 0 === this.pos_data.jly && 0 === this.pos_data.jrx && 0 === this.pos_data.jry ) return;
 
-            // Подготовить значения для отправки
-            let vx = this.pos_data.jry/10 || 0, // max 50/10 = 5 m/s
-                vy = this.pos_data.jrx/10 || 0, // max 50/10 = 5 m/s
-                vz = this.pos_data.jly/10*-1 || 0, // max 50/10 = 5 m/s // Z velocity in m/s (positive is down)
-                yr = this.pos_data.jlx/50 || 0; // 1 rad/sec
+                // Сохранить для сравнения со следующими данными
+                this.last_sent_pos_data.jlx = this.pos_data.jlx;
+                this.last_sent_pos_data.jly = this.pos_data.jly;
+                this.last_sent_pos_data.jrx = this.pos_data.jrx;
+                this.last_sent_pos_data.jry = this.pos_data.jry;
 
-            // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
-            this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', {
-                time_boot_ms: helpers.now_ms()
-                ,target: this.drone.mavlink.sysid
-                ,target_component: this.drone.mavlink.compid
-                ,coordinate_frame: 9
-                ,type_mask: 1479
-                ,x: null
-                ,y: null
-                ,z: null
-                ,vx: vx
-                ,vy: vy
-                ,vz: vz // Z velocity in m/s (positive is down)
-                ,afx: null
-                ,afy: null
-                ,afz: null
-                ,yaw: null
-                ,yaw_rate: yr
-            });
+                // Подготовить значения для отправки
+                let vx = this.pos_data.jry/10 || 0, // max 50/10 = 5 m/s
+                    vy = this.pos_data.jrx/10 || 0, // max 50/10 = 5 m/s
+                    vz = this.pos_data.jly/10*-1 || 0, // max 50/10 = 5 m/s // Z velocity in m/s (positive is down)
+                    yr = this.pos_data.jlx/50 || 0; // 1 rad/sec
+
+                // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
+                this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', {
+                    time_boot_ms: helpers.now_ms()
+                    ,target: this.drone.mavlink.sysid
+                    ,target_component: this.drone.mavlink.compid
+                    ,coordinate_frame: 9
+                    ,type_mask: 1479
+                    ,x: null
+                    ,y: null
+                    ,z: null
+                    ,vx: vx
+                    ,vy: vy
+                    ,vz: vz // Z velocity in m/s (positive is down)
+                    ,afx: null
+                    ,afy: null
+                    ,afz: null
+                    ,yaw: null
+                    ,yaw_rate: yr
+                });
+
+            }
+
+            // other modes
+            else {
+
+                // RC_CHANNELS_OVERRIDE
+                const control_rate = 0.7;
+
+                // установить каналы из параметров
+
+                let rc_chan = {
+                     1: 65535
+                    ,2: 65535
+                    ,3: 65535
+                    ,4: 65535
+                    ,5: 65535
+                    ,6: 65535
+                    ,7: 65535
+                    ,8: 65535
+                    ,9: 65535
+                    ,10: 65535
+                    ,11: 65535
+                    ,12: 65535
+                    ,13: 65535
+                    ,14: 65535
+                    ,15: 65535
+                    ,16: 65535
+                    ,17: 65535
+                    ,18: 65535
+                };
+
+                let rc_roll = this.drone.params.get('RCMAP_ROLL');
+                if( rc_roll && rc_roll > 0 && rc_roll <= 18 ) rc_chan[rc_roll] = 1500+Math.round(this.pos_data.jrx*10*control_rate);
+
+                let rc_pitch = this.drone.params.get('RCMAP_PITCH');
+                if( rc_pitch && rc_pitch > 0 && rc_pitch <= 18 ) rc_chan[rc_pitch] = 1500+Math.round(this.pos_data.jry*10*control_rate)*-1;
+
+                let rc_throt = this.drone.params.get('RCMAP_THROTTLE');
+                if( rc_throt && rc_throt > 0 && rc_throt <= 18 ) rc_chan[rc_throt] = 1500+Math.round(this.pos_data.jly*10*control_rate);
+
+                let rc_yaw = this.drone.params.get('RCMAP_YAW');
+                if( rc_yaw && rc_yaw > 0 && rc_yaw <= 18 ) rc_chan[rc_yaw] = 1500+Math.round(this.pos_data.jlx*10*control_rate);
+
+                // Отправляем RC_OVERRIDE
+                this.drone.mavlink.sendMessage('RC_CHANNELS_OVERRIDE', {
+                     target_system: this.drone.mavlink.sysid
+                    ,target_component: this.drone.mavlink.compid
+                    ,chan1_raw: rc_chan[1]
+                    ,chan2_raw: rc_chan[2]
+                    ,chan3_raw: rc_chan[3]
+                    ,chan4_raw: rc_chan[4]
+                    ,chan5_raw: rc_chan[5]
+                    ,chan6_raw: rc_chan[6]
+                    ,chan7_raw: rc_chan[7]
+                    ,chan8_raw: rc_chan[8]
+                    ,chan9_raw: rc_chan[9]
+                    ,chan10_raw: rc_chan[10]
+                    ,chan11_raw: rc_chan[11]
+                    ,chan12_raw: rc_chan[12]
+                    ,chan13_raw: rc_chan[13]
+                    ,chan14_raw: rc_chan[14]
+                    ,chan15_raw: rc_chan[15]
+                    ,chan16_raw: rc_chan[16]
+                    ,chan17_raw: rc_chan[17]
+                    ,chan18_raw: rc_chan[18]
+                });
+            }
 
         }
 
@@ -1798,36 +1964,356 @@ class FlightPathController {
 class LogDownloadController {
     constructor(drone){
         this.drone = drone;
-        this.path = []; // array of [lng,lat]
+
+        this.last_log_num = 0;
+        this.last_log_time_utc = 0;
+        this.last_log_size = 0;
+        this.block_size = 46080; // == 512 кусков по 90 байт
+
+        this.log_buffer = '';
+        this.download_in_progress = false;
+        this.current_offset = 0;
+        this.next_block_from_offset = 0;
+        this.max_req_num = 0;
+        this.reqs = 0;
+
+        const _this = this;
+
+        let process_timeout = null;
+
+        const report_process = (data) => {
+            drone.send2io('report_log_dl', data);
+        };
+
+        const report_process_throttled = _.throttle(report_process, 1000);
+
+        // Эта функция запускается, если нет сообщений с данными лога больше 500мс
+        // Запускает запрос следующего блока или прекращает загрузку
+        const process_timeout_callback = () => {
+            if( !this.download_in_progress ) return;
+
+            console.log('LOG process timeout', this.current_offset);
+            // Если перестали приходить сообщения LOG_DATA
+
+            // Если таймаут срабатывал больше допустимого кол-ва раз
+            if( this.reqs >= this.max_req_num ){
+                console.log('Max Req reached. Downloaded', this.log_buffer.length, 'of', this.last_log_size);
+                report_process({status: 'failed', msg: 'Failed to download log file'});
+                return;
+            }
+
+            this.reqs++;
+
+            this.request_next_block();
+            this.set_process_timeout();
+        };
+
+        this.request_next_block = () => {
+            report_process_throttled({status: 'pend', msg: 'Downloaded ' + this.current_offset + ' of ' + this.last_log_size});
+
+            this.drone.mavlink.sendMessage('LOG_REQUEST_DATA', {
+                target_system: this.drone.mavlink.sysid
+                ,target_component: this.drone.mavlink.compid
+                ,id: this.last_log_num
+                ,ofs: this.current_offset
+                ,count: this.block_size
+            });
+
+            console.log('Req', this.current_offset, 'of', this.last_log_size);
+        };
+        this.set_process_timeout = () => {
+            if( process_timeout ) clearTimeout(process_timeout);
+            process_timeout = setTimeout(() => {
+                process_timeout_callback();
+            }, 500);
+        };
+        this.cancel_process_timeout = () => {
+            if( process_timeout ) clearTimeout(process_timeout);
+            this.download_in_progress = false;
+        };
+
+        this.download_complete = () => {
+            this.cancel_process_timeout();
+
+            console.log('DL complete', this.log_buffer.length, 'of', this.last_log_size);
+            report_process({status: 'pend', msg: 'Download complete. Parsing...'});
+
+            // Записать в файл
+            let file_name = helpers.now() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
+
+            fs.writeFile('./../logs/' + file_name, this.log_buffer, 'binary', err => {
+                if( err ) return console.log('Failed to write file');
+
+                try {
+                    // Распарсить файл
+                    const spawn = require("child_process").spawn;
+
+                    const pyprocess = spawn('python',["./../utils/pymavlink/DFReader.py", './../logs/' + file_name] );
+
+                    let parse_response = '';
+                    pyprocess.stdout.on('error', function() {
+                        console.log('ERROR');
+                        throw Error('pyprocess error');
+                    } );
+                    pyprocess.stdout.on('data', function(data) {
+                        parse_response += data;
+                    } );
+                    pyprocess.stdout.on('close', function() {
+                        if( !parse_response.includes('OK') ){
+                            console.log('Failed to parse file');
+                            return;
+                        }
+
+                        console.log('JSON file saved');
+
+                        // Завести запись в БД
+                        const new_log = new FlightLogModel({
+                            name: 'auto ' + file_name
+                            ,bin_file: file_name
+                        });
+
+                        try {
+                            // Validate data
+                            new_log.validate();
+
+                            // Save new log
+                            new_log.save()
+                                .then( doc => {
+                                    Logger.info('new log saved ' + doc.id);
+                                    report_process({status: 'success', msg: 'Log file uploaded and parsed'});
+                                })
+                                .catch( e => {
+                                    report_process({status: 'failed', msg: 'Failed to save to DB (0)'});
+                                    Logger.error(e);
+                                });
+
+                        }
+                        catch(e){
+                            report_process({status: 'failed', msg: 'Failed to save to DB (1)'});
+                            // Response with error
+                            if( 'ValidationError' === e.name ){
+                                Logger.warn('Log create validation failed');
+                                Logger.warn(e);
+                            }
+                            else {
+                                Logger.error('Database error drone create');
+                                Logger.error(e);
+                            }
+                        }
+
+                    });
+
+                }
+                catch (e) {
+                    console.log('Failed to process file', e);
+                    report_process({status: 'failed', msg: 'Failed to parse file'});
+                }
+
+            });
+
+        };
 
         // Очистить след если дрон дезактивирован
         drone.events.on('disarmed', () => { this.auto_download() });
 
+        // Прочитать список логфайлов
         drone.mavlink.on('LOG_ENTRY', fields => {
-            console.log('LOG_ENTRY', fields);
+            //console.log('LOG_ENTRY', fields);
+            if( !this.last_log_num || this.last_log_num !== parseInt(fields.num_logs) ) {
+                this.last_log_num = parseInt(fields.num_logs);
+            }
+
+            if( this.last_log_num === parseInt(fields.id) ){
+                this.last_log_time_utc = parseInt(fields.time_utc);
+                this.last_log_size = parseInt(fields.size);
+                this.download_last();
+            }
+
+        });
+
+        // Получение данных логфайла
+        drone.mavlink.on('LOG_DATA', fields => {
+            // Если не в процессе скачивания или id лога не то, что нужно, то ничего не делать
+            if( !this.download_in_progress || parseInt(fields.id) !== this.last_log_num ) return;
+
+            // Длина данных
+            let count = parseInt(fields.count);
+
+            // Если пришел ожидаемый кусок
+            if( parseInt(fields.ofs) === this.current_offset ){
+                // Если есть длина данных
+                if( count > 0 ){
+                    let chunk = fields.data;
+                    // Если кусок меньше стандартного 90 байт, то обрезать лишнее
+                    if( count < 90 && chunk.length > count ) chunk = chunk.slice(0, count);
+
+                    // приклеить к буферу
+                    this.log_buffer += chunk;
+                    // увеличить смещение
+                    this.current_offset += count;
+
+                }
+
+                // Если кусок < 90 байт, то он последний
+                if( count < 90 ){
+                    this.download_complete();
+                }
+                // А если == 90, то ждем следующее сообщение или запрашиваем следующий блок
+                else {
+                    if( this.current_offset === this.next_block_from_offset ) {
+                        this.next_block_from_offset = this.current_offset + this.block_size;
+                        this.request_next_block();
+                    }
+                }
+            }
+
+            // сбросить таймаут процесса
+            this.set_process_timeout();
+
         });
 
     }
 
+    // Запросить список логфайлов на борту
     get_list(){
-        console.log('get list');
-        // Запросить лист
+
         this.drone.mavlink.sendMessage('LOG_REQUEST_LIST', {
             target_system: this.drone.mavlink.sysid
             ,target_component: this.drone.mavlink.compid
             ,start: 0
             ,end: 0xffff
         });
-    }
-
-    download(){
 
     }
 
+    // Запустить скачку последнего лога
+    download_last(){
+        if( !this.last_log_num || !this.last_log_time_utc || !this.last_log_size ) return;
+
+        // TODO проверить в БД на дубликат
+
+        // Запросить скачивание логфайла
+        console.log('DOWNLOAD last log ', this.last_log_num);
+
+        this.log_buffer = '';
+        this.current_offset = 0;
+        this.next_block_from_offset = this.current_offset + this.block_size;
+        this.download_in_progress = true;
+        this.reqs = 1;
+        this.max_req_num = Math.round(this.last_log_size/this.block_size)+2;
+
+        this.request_next_block();
+        this.set_process_timeout();
+
+    }
+
+    // Запуск автозагрузки
     auto_download(){
-        console.log('autodownload');
+        // Если выключен параметр сохранения лога в файл после дизарма, то ничего не делать
+        if( this.drone.params.get('LOG_FILE_DSRMROT') !== 1 ) return;
+
+        // Запросить список логов, если есть что-то, то определить последний и загрузить в download_last()
         this.get_list();
     }
+
+}
+
+//
+// Контроллер параметров
+class ParamsController {
+
+    constructor(drone){
+        this.drone = drone;
+        this.params = {};
+        this.params_by_index = {};
+        this.params_count = 0;
+        this.missing_params = [];
+
+        // Через 2 сек после прихода такого сообщения проверяем полноту параметров
+        this.check_timeout = null;
+
+        // Проверка на полный список параметров
+        this.check_params = () => {
+            this.missing_params = [];
+            //console.log('checking params');
+
+            for( let i = 0, k = this.params_count; i < k; i++ ){
+                if( !_.has(this.params_by_index, i.toString()) ) this.missing_params.push(i);
+            }
+
+            //console.log('Missing params', this.missing_params);
+
+            if( !this.missing_params.length ) return;
+
+            try {
+                this.missing_params.each( param_ind => {
+                    // Запросить пропущенные параметры
+                    this.drone.mavlink.sendMessage('PARAM_REQUEST_READ', {
+                        target_system: this.drone.mavlink.sysid
+                        ,target_component: this.drone.mavlink.compid
+                        ,param_id: ''
+                        ,param_index: parseInt(param_ind)
+                    });
+                });
+            }
+            catch(e){
+                console.log(this.missing_params);
+            }
+
+
+        };
+
+        // Загрузить параметры в первый раз, если дрон онлайн
+        drone.events.once('infoLoaded', info => {
+            if( drone.info.isOnline() ) this.request_params();
+        });
+
+        // Прочитать и загрузить параметры
+        drone.mavlink.on('PARAM_VALUE', fields => {
+            if( parseInt(fields.param_index) === 65535 ) return;
+
+            if( this.check_timeout ) clearTimeout(this.check_timeout);
+
+            let param_id = fields.param_id.replace(/\0/g, '').trim();
+            this.params[param_id] = parseInt(fields.param_type) > 8 ? parseFloat(fields.param_value) : parseInt(fields.param_value);
+            this.params_by_index[parseInt(fields.param_index).toString()] = param_id;
+
+            if( !this.params_count || this.params_count !== parseInt(fields.param_count) ) this.params_count = parseInt(fields.param_count);
+
+            this.check_timeout = setTimeout( () => {
+                this.check_params();
+            }, 2000);
+
+        });
+
+        // Загрузить снова все параметры если дрон был оффлайн больше 30 сек
+        drone.events.on('isOnline', downtime => {
+            if( downtime > 30 )
+                this.request_params();
+        });
+
+    }
+
+    request_params(){
+
+        //console.log('requesting params');
+        this.missing_params = [];
+
+        // Запросить лист
+        this.drone.mavlink.sendMessage('PARAM_REQUEST_LIST', {
+             target_system: this.drone.mavlink.sysid
+            ,target_component: this.drone.mavlink.compid
+        });
+    }
+
+    get(param_id){
+        return _.has(this.params, param_id) ? this.params[param_id] : null;
+    }
+
+    set(param_id, param_value){
+        // TODO
+    }
+
 }
 
 
@@ -1900,7 +2386,6 @@ class DroneServer {
         };
 
         this.id = params.id;
-        this.params = params;
         this.data = {
             // Тип автопилота
             autopilot: null // 3=Ardupilot, 12=PX4
@@ -1910,6 +2395,7 @@ class DroneServer {
             ,modes: null
             // по какому типу определять режим base или custom
             ,modes_type: null
+            ,db_params: params // Параметры из БД
             // Счетчики сообщений
             ,message_counters: {
                 total: 0
@@ -1939,8 +2425,9 @@ class DroneServer {
         this.mission_upload = new MissionUploadController(this);
         this.flight_path = new FlightPathController(this);
         this.log_download = new LogDownloadController(this);
+        this.params = new ParamsController(this);
 
-        Logger.info(`DroneServer started (${helpers.now_ms()-start_time}ms) for ${this.params.name}`);
+        Logger.info(`DroneServer started (${helpers.now_ms()-start_time}ms) for ${this.data.db_params.name}`);
 
     }
 
@@ -1949,18 +2436,18 @@ class DroneServer {
     update(data){
 
         // Сравнить данные
-        let udp_proxy_restart = ( this.params.udp_port !== data.udp_port && this.info.get('udp_ip_s') === 1 );
-        let tcp_proxy_restart = ( this.params.gcs_tcp_port !== data.gcs_tcp_port && this.info.get('tcp_op_s') === 1 );
+        let udp_proxy_restart = ( this.data.db_params.udp_port !== data.udp_port && this.info.get('udp_ip_s') === 1 );
+        let tcp_proxy_restart = ( this.data.db_params.gcs_tcp_port !== data.gcs_tcp_port && this.info.get('tcp_op_s') === 1 );
 
         // Переписать параметры в памяти
-        _.mapKeys(data, (v, k) => { this.params[k] = v; });
+        _.mapKeys(data, (v, k) => { this.data.db_params[k] = v; });
 
         // Сообщить всем, что параметры изменены
         this.events.emit('paramsChanged');
 
         // Рестарт сервисов зависимых от параметров
         if( udp_proxy_restart ){
-            this.RPC.req(RK.DRONE_UDP_PROXY_RESTART(), {drone_id: this.id, port: this.params.udp_port })
+            this.RPC.req(RK.DRONE_UDP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
                 .then(function(data){
                     Logger.info('UDP RESTARTED ', data);
                 })
@@ -1969,7 +2456,7 @@ class DroneServer {
                 });
         }
         if( tcp_proxy_restart ){
-            this.RPC.req(RK.DRONE_GCS_TCP_PROXY_RESTART(), {drone_id: this.id, port: this.params.udp_port })
+            this.RPC.req(RK.DRONE_GCS_TCP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
                 .then(function(data){
                     Logger.info('TCP RESTARTED ', data);
                 })

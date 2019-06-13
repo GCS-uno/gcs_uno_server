@@ -94,7 +94,10 @@ export default class LogsListView extends JetView {
             }
             else if( 'del' === changes.e ){
                 console.log("DELETE", changes.data);
-                if( LogsCollection.getItem(changes.data.id) ) LogsCollection.remove(changes.data.id);
+                if( LogsCollection.getItem(changes.data.id) ) {
+                    console.log('Exists yet');
+                    LogsCollection.remove(changes.data.id);
+                }
             }
             else if( 'upd' === changes.e ){
                 console.log("UPDATE", changes.data);

@@ -49,7 +49,7 @@ LogsCollection.Remove = function(log_id){
 
         window.app.getService('io').rpc('logRemove', {id:log_id})
             .then( data => {
-                _this.remove(data.id);
+                if( _this.getItem(data.id)) _this.remove(data.id);
                 resolve(true);
             })
             .catch( reject );
