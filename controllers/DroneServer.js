@@ -19,7 +19,8 @@ const common_config = require('../configs/common_config')
      ,turf_helpers = require('@turf/helpers')
      ,turf_dist = require('@turf/distance').default
      ,DroneServersList = {}
-     ,DataFlashLogModel = require('../db_models/DataFlashLog');
+     ,DataFlashLogModel = require('../db_models/DataFlashLog')
+     ,DataFlashLog = require('../utils/dataflash_logs');
 
 const io = require('socket.io-emitter')({ host: server_config.REDIS_HOST, port: server_config.REDIS_PORT });
 
@@ -2129,7 +2130,7 @@ class LogDownloadController {
             this.report_process({status: 'pars', id: _this.current_dl_log_num, msg: 'Download complete. Parsing...'});
 
             // Придумать имя файла
-            let file_name = helpers.now() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
+            let file_name = helpers.now() + '_' + nodeUuid.v4().substr(0, 10) + '.bin';
 
             // Записать в файл
             fs.writeFile('./../logs/' + file_name, this.log_buffer, 'binary', err => {
@@ -2165,44 +2166,87 @@ class LogDownloadController {
 
                         Logger.info('JSON file saved');
 
-                        // Завести запись в БД
-                        const new_log = new DataFlashLogModel({
-                             bin_file: file_name
-                            ,ind_ts_sz: _this.current_dl_log_num + '_' + _this.current_dl_log_ts + '_' + _this.current_dl_log_size
-                        });
+                        DataFlashLog.grab_data(file_name)
+                            .then( grab_result => {
 
-                        try {
-                            // Validate data
-                            new_log.validate();
+                                try {
 
-                            // Save new log
-                            new_log.save()
-                                .then( doc => {
-                                    _this.report_process({status: 'success', id: _this.current_dl_log_num, msg: 'Log file uploaded and parsed', log_id: doc.id});
+                                    let new_log_data = {
+                                         bin_file: file_name
+                                        ,drone_id: _this.drone.id
+                                        ,ind_ts_sz: _this.current_dl_log_num + '_' + _this.current_dl_log_ts + '_' + _this.current_dl_log_size
+                                        ,gps_time: DataFlashLogModel.r().epochTime(grab_result.gps_time)
+                                        ,l_time: grab_result.l_time
+                                    };
+
+                                    if( grab_result.lat !== null && grab_result.lon !== null ){
+                                        new_log_data.location_point = DataFlashLogModel.r().point(parseFloat(grab_result.lon), parseFloat(grab_result.lat));
+                                        new_log_data.location = grab_result.lat + '  ' + grab_result.lon;
+                                    }
+
+                                    // Завести запись в БД
+                                    const new_log = new DataFlashLogModel(new_log_data);
+
+                                    // Validate data
+                                    new_log.validate();
+
+                                    // Save new log
+                                    new_log.save()
+                                        .then( doc => {
+                                            _this.report_process({status: 'success', id: _this.current_dl_log_num, msg: 'Log file uploaded and parsed', log_id: doc.id});
+                                            _this.cancel_process();
+                                            //Logger.info('new log saved ', doc);
+
+                                            try {
+                                                // Location lookup
+                                                if( grab_result.lat !== null && grab_result.lon !== null ){
+                                                    DataFlashLog.location_lookup(grab_result.lat, grab_result.lon)
+                                                        .then(function(response){
+                                                            //console.log('LOC', result);
+                                                            if( 'OK' === response.json.status ){
+                                                                //console.log(response.json.results[0].formatted_address);
+                                                                new_log.location = response.json.results[0].formatted_address;
+                                                                new_log.save();
+                                                            }
+                                                        })
+                                                        .catch((err) => {
+                                                            console.log('ERR', err);
+                                                        });
+                                                }
+                                            }
+                                            catch (e){
+                                                console.log('Lookup err', e);
+                                            }
+
+                                        })
+                                        .catch( e => {
+                                            _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (0)'});
+                                            _this.cancel_process();
+                                            Logger.error(e);
+                                        });
+
+                                }
+                                catch(e){
+                                    _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (1)'});
                                     _this.cancel_process();
-                                    Logger.info('new log saved ', doc);
-                                })
-                                .catch( e => {
-                                    _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (0)'});
-                                    _this.cancel_process();
-                                    Logger.error(e);
-                                });
 
-                        }
-                        catch(e){
-                            _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (1)'});
-                            _this.cancel_process();
-
-                            // Response with error
-                            if( 'ValidationError' === e.name ){
-                                Logger.warn('Log create validation failed');
-                                Logger.warn(e);
-                            }
-                            else {
-                                Logger.error('Database error drone create');
+                                    // Response with error
+                                    if( 'ValidationError' === e.name ){
+                                        Logger.warn('Log create validation failed');
+                                        Logger.warn(e);
+                                    }
+                                    else {
+                                        Logger.error('Database error drone create');
+                                        Logger.error(e);
+                                    }
+                                }
+                            })
+                            .catch( err => {
+                                _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to read log file'});
+                                _this.cancel_process();
                                 Logger.error(e);
-                            }
-                        }
+                            });
+
 
                     });
 

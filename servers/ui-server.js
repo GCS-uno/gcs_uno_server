@@ -23,6 +23,7 @@ const server_config = require('../configs/server_config')
     ,DroneModel = require('../db_models/Drone')
     ,DataFlashLogModel = require('../db_models/DataFlashLog')
     ,nodeUuid = require('node-uuid')
+    ,DataFlashLog = require('../utils/dataflash_logs')
 ; /////////
 
 try {
@@ -61,12 +62,12 @@ try {
             let uploaded_file = request.files.upload;
 
             // Придумать уникальное имя файла
-            let file_name = helpers.now_ms() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
+            let file_name = helpers.now_ms() + '_' + nodeUuid.v4().substr(0, 10) + '.bin';
 
             // Скопировать файл
-            uploaded_file.mv('./../logs/' + file_name, function(err) {
+            uploaded_file.mv(__dirname + '/../logs/' + file_name, function(err) {
                 if (err){
-                    console.log(err);
+                    Logger.error(err);
                     reject('Failed to move log file');
                 }
                 else {
@@ -92,42 +93,80 @@ try {
                             return;
                         }
 
-                        // Завести запись в БД
-                        const new_log = new DataFlashLogModel({
-                            bin_file: file_name
-                        });
+                        DataFlashLog.grab_data(file_name)
+                            .then( grab_result => {
 
-                        try {
-                            // Validate data
-                            new_log.validate();
+                                console.log("Grab log file data", grab_result);
 
-                            // Save new log
-                            new_log.save()
-                                .then(function(doc) {
-                                    Logger.info('new log saved ' + doc.id);
+                                try {
 
-                                    // Response with success
-                                    resolve({ status: 'success' });
-                                })
-                                .catch( e => {
-                                    Logger.error(e);
-                                    reject('Saving error');
-                                });
+                                    let new_log_data = {
+                                        bin_file: file_name
+                                        ,gps_time: DataFlashLogModel.r().epochTime(grab_result.gps_time)
+                                        ,l_time: grab_result.l_time
+                                    };
 
-                        }
-                        catch(e){
-                            // Response with error
-                            if( 'ValidationError' === e.name ){
-                                Logger.warn('Log create validation failed');
-                                Logger.warn(e);
-                                reject('Log create validation failed');
-                            }
-                            else {
-                                Logger.error('Database error drone create');
-                                Logger.error(e);
-                                reject('Database error');
-                            }
-                        }
+                                    if( grab_result.lat !== null && grab_result.lon !== null ){
+                                        new_log_data.location_point = DataFlashLogModel.r().point(grab_result.lon, grab_result.lat);
+                                        new_log_data.location = grab_result.lat + '  ' + grab_result.lon;
+                                    }
+
+                                    // Завести запись в БД
+                                    const new_log = new DataFlashLogModel(new_log_data);
+
+                                    try {
+                                        // Validate data
+                                        new_log.validate();
+
+                                        // Save new log
+                                        new_log.save()
+                                            .then( doc => {
+                                                Logger.info('new log saved ' + doc.id);
+
+                                                // Response with success
+                                                resolve({ status: 'server' });
+                                            })
+                                            .catch( e => {
+                                                Logger.error(e);
+                                                reject('Saving error');
+                                            });
+                                    }
+                                    catch(e){
+                                        // Response with error
+                                        if( 'ValidationError' === e.name ){
+                                            Logger.warn('Log create validation failed');
+                                            Logger.warn(e);
+                                            reject('Log create validation failed');
+                                        }
+                                        else {
+                                            Logger.error('Database error drone create');
+                                            Logger.error(e);
+                                            reject('Database error');
+                                        }
+                                    }
+
+
+                                }
+                                catch(e){
+                                    _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (1)'});
+                                    _this.cancel_process();
+
+                                    // Response with error
+                                    if( 'ValidationError' === e.name ){
+                                        Logger.warn('Log create validation failed');
+                                        Logger.warn(e);
+                                    }
+                                    else {
+                                        Logger.error('Database error drone create');
+                                        Logger.error(e);
+                                    }
+                                }
+                            })
+                            .catch( err => {
+                                Logger.error(err);
+                                reject('Init parse error');
+                            });
+
 
                     });
 
@@ -258,38 +297,66 @@ try {
 
                     // Добавился новый лог
                     if( !data.old_val && data.new_val ){
-                        console.log("NEW");
-                        io_client.emit('logs_look', {
-                            e: 'new'
-                            ,data: data.new_val
-                        });
+
+                        let new_log = {
+                            id: data.new_val.id
+                            ,date: data.new_val.createdAt
+                            ,d_name: ''
+                            ,gps_ts: data.new_val.gps_time || ''
+                            ,location: data.new_val.location || ''
+                            ,l_time: helpers.readable_seconds(data.new_val.l_time || 0)
+                        };
+
+                        const send_data = function(){
+                            io_client.emit('logs_look', { e: 'new' ,data: new_log });
+                        };
+
+                        if( data.new_val.drone_id && data.new_val.drone_id.length > 5 ){
+                            DroneModel.get(data.new_val.drone_id).run()
+                                .then( drone => {
+                                    new_log.d_name = drone.name;
+                                    send_data();
+                                })
+                                .catch( err => {
+                                    Logger.error(err);
+                                    send_data();
+                                })
+                        }
+                        else send_data();
+
+
                     }
 
                     // Удалился лог
                     else if( data.old_val && !data.new_val ){
-                        console.log("DELETE 1");
                         io_client.emit('logs_look', {
                             e: 'del'
-                            ,data: data.old_val
+                            ,data: {
+                                id: data.old_val.id
+                            }
                         });
                     }
 
+
                     // Изменение данных
                     else if( data.old_val && data.new_val ){
-                        console.log("UPDATE");
+                        //console.log('LOG UPD', data.new_val);
                         io_client.emit('logs_look', {
                             e: 'upd'
-                            ,data: data.new_val
+                            ,data: {
+                                id: data.new_val.id
+                                ,location: data.new_val.location
+                            }
                         });
                     }
+
+
 
                 });
             })
             .catch(Logger.error);
 
-
     });
-
 
 }
 catch (e){

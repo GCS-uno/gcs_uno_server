@@ -40,7 +40,7 @@ export default class LogView extends JetView {
         const log_item = LogsCollection.getItem(log_id);
 
         // Сделать в заголовке ссылку на список и добавить название лога
-        this.app.getService('topTitle').update([{text: 'Logs', link: '/app/logs_list'}, {text: log_item.name}]);
+        this.app.getService('topTitle').update([{text: 'Logs', link: '/app/logs_list'}, {text: log_item.location}]);
 
         // Top controls
         const btn_remove = webix.$$('log_view:btn:trash');
@@ -549,7 +549,26 @@ export default class LogView extends JetView {
         };
 
         let modes_timeline = [];
-        let modes_colors = {};
+        // Определенные цвета для режимов
+        let modes_colors = {
+             0: 'rgba(255,250,32,0.3)'
+            ,3: 'rgba(9,255,93,0.3)'
+            ,4: 'rgba(255,7,164,0.3)'
+            ,5: 'rgba(10,65,255,0.3)'
+            ,6: 'rgba(71,83,96,0.3)'
+            ,9: 'rgba(98,5,255,0.3)'
+        };
+        // Подготовить набор цветов для отображения режимов
+        let mode_random_colors_set = [
+            'rgba(255,250,32,0.3)'
+            ,'rgba(255,7,164,0.3)'
+            ,'rgba(98,5,255,0.3)'
+            ,'rgba(10,65,255,0.3)'
+            ,'rgba(9,255,93,0.3)'
+            ,'rgba(71,83,96,0.3)'
+            ,'rgba(255,195,16,0.3)'
+            ,'rgba(255,47,49,0.3)'
+        ];
         let errors_timeline = [];
 
 
@@ -636,7 +655,9 @@ export default class LogView extends JetView {
 
         let custom_series = {};
 
-        btn_uncheck_all.attachEvent('onItemClick', msg_tree.uncheckAll );
+        btn_uncheck_all.attachEvent('onItemClick', function(){
+            msg_tree.uncheckAll();
+        } );
 
         msg_tree.attachEvent("onItemCheck", function(ser_ind, checked){
 
@@ -646,7 +667,7 @@ export default class LogView extends JetView {
                         custom_series[ser_ind] = charts.custom_chart.addSeries({
                             name: ser_ind
                             ,lineWidth: 1
-                            ,data: data.series[ser_ind]
+                            ,data: data[ser_ind]
                         });
                     } )
                     .catch( err => {
@@ -678,235 +699,297 @@ export default class LogView extends JetView {
                 msg_tree.parse(data.msg_tree);
                 msg_tree.sort('value', 'asc');
 
-                // TODO сделать загрузки из новой функции
+
+                // Загрузка данных для графиков по отдельности
+
+                // Вибрация VIBE
+                if( msg_tree.exists('VIBE') ){
+                    window.app.getService('io').rpc('logGetSeries', {id: log_id, series: ['VIBE.VibeX', 'VIBE.VibeY', 'VIBE.VibeZ', 'VIBE.Clip0', 'VIBE.Clip1', 'VIBE.Clip2']})
+                        .then( data => {
+
+                            if( data.hasOwnProperty('VIBE.VibeX') ){
+                                charts.vibe_xyz_chart.addSeries({
+                                    name: 'X'
+                                    ,lineWidth: 1
+                                    ,data: data['VIBE.VibeX']
+                                    ,color: '#0f0eff'
+                                });
+                            }
+                            if( data.hasOwnProperty('VIBE.VibeY') ){
+                                charts.vibe_xyz_chart.addSeries({
+                                    name: 'Y'
+                                    ,lineWidth: 1
+                                    ,data: data['VIBE.VibeY']
+                                    ,color: '#ff291c'
+                                });
+                            }
+                            if( data.hasOwnProperty('VIBE.VibeZ') ){
+                                charts.vibe_xyz_chart.addSeries({
+                                    name: 'Z'
+                                    ,lineWidth: 1
+                                    ,data: data['VIBE.VibeZ']
+                                    ,color: '#c500ff'
+                                });
+                            }
+                            if( data.hasOwnProperty('VIBE.Clip0') ){
+                                charts.vibe_clip_chart.addSeries({
+                                    name: 'Clip 0'
+                                    ,lineWidth: 2
+                                    ,data: data['VIBE.Clip0']
+                                });
+                            }
+                            if( data.hasOwnProperty('VIBE.Clip1') ){
+                                charts.vibe_clip_chart.addSeries({
+                                    name: 'Clip 1'
+                                    ,lineWidth: 2
+                                    ,data: data['VIBE.Clip1']
+                                });
+                            }
+                            if( data.hasOwnProperty('VIBE.Clip2') ){
+                                charts.vibe_clip_chart.addSeries({
+                                    name: 'Clip 2'
+                                    ,lineWidth: 2
+                                    ,data: data['VIBE.Clip2']
+                                });
+                            }
+                        } )
+                        .catch( err => {
+                            Message.error('Failed to load data: ' + err);
+                        } );
+                }
+                else {
+                    this.$$('chart:vibe_xyz').hide();
+                    this.$$('chart:vibe_clip').hide();
+                }
 
                 // Положение ATT
-                if( data.log_data.ATT ){
-                    charts.att_chart.addSeries({
-                        name: 'Desired Roll'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.DesRoll
-                    });
-                    charts.att_chart.addSeries({
-                        name: 'Actual Roll'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.Roll
-                    });
-                    charts.att_chart.addSeries({
-                        name: 'Desired Pitch'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.DesPitch
-                    });
-                    charts.att_chart.addSeries({
-                        name: 'Actual Pitch'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.Pitch
-                    });
-                    charts.att_chart.addSeries({
-                        name: 'Desired Yaw'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.DesYaw
-                    });
-                    charts.att_chart.addSeries({
-                        name: 'Actual Yaw'
-                        ,lineWidth: 1
-                        ,data: data.log_data.ATT.Yaw
-                    });
+                if( msg_tree.exists('ATT') ){
+                    window.app.getService('io').rpc('logGetSeries', {id: log_id, series: ['ATT.DesRoll', 'ATT.Roll', 'ATT.DesPitch', 'ATT.Pitch', 'ATT.DesYaw', 'ATT.Yaw']})
+                        .then( data => {
+                            if( data.hasOwnProperty('ATT.DesRoll') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Desired Roll'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.DesRoll']
+                                });
+                            }
+                            if( data.hasOwnProperty('ATT.Roll') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Actual Roll'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.Roll']
+                                });
+                            }
+                            if( data.hasOwnProperty('ATT.DesPitch') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Desired Pitch'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.DesPitch']
+                                });
+                            }
+                            if( data.hasOwnProperty('ATT.Pitch') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Actual Pitch'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.Pitch']
+                                });
+                            }
+                            if( data.hasOwnProperty('ATT.DesYaw') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Desired Yaw'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.DesYaw']
+                                });
+                            }
+                            if( data.hasOwnProperty('ATT.Yaw') ){
+                                charts.att_chart.addSeries({
+                                    name: 'Actual Yaw'
+                                    ,lineWidth: 1
+                                    ,data: data['ATT.Yaw']
+                                });
+                            }
+                        } )
+                        .catch( err => {
+                            Message.error('Failed to load data: ' + err);
+                        } );
                 }
-
-                // Вибрация
-                if( data.log_data.VIBE ){
-                    if( data.log_data.VIBE.hasOwnProperty('VibeX') ){
-                        charts.vibe_xyz_chart.addSeries({
-                            name: 'X'
-                            ,lineWidth: 1
-                            ,data: data.log_data.VIBE.VibeX
-                            ,color: '#0f0eff'
-                        });
-                    }
-                    if( data.log_data.VIBE.hasOwnProperty('VibeY') ){
-                        charts.vibe_xyz_chart.addSeries({
-                            name: 'Y'
-                            ,lineWidth: 1
-                            ,data: data.log_data.VIBE.VibeY
-                            ,color: '#ff291c'
-                        });
-                    }
-                    if( data.log_data.VIBE.hasOwnProperty('VibeZ') ){
-                        charts.vibe_xyz_chart.addSeries({
-                            name: 'Z'
-                            ,lineWidth: 1
-                            ,data: data.log_data.VIBE.VibeZ
-                            ,color: '#c500ff'
-                        });
-                    }
-
-                    if( data.log_data.VIBE.hasOwnProperty('Clip0') ){
-                        charts.vibe_clip_chart.addSeries({
-                            name: 'Clip 0'
-                            ,lineWidth: 2
-                            ,data: data.log_data.VIBE.Clip0
-                        });
-                    }
-                    if( data.log_data.VIBE.hasOwnProperty('Clip1') ){
-                        charts.vibe_clip_chart.addSeries({
-                            name: 'Clip 1'
-                            ,lineWidth: 2
-                            ,data: data.log_data.VIBE.Clip1
-                        });
-                    }
-                    if( data.log_data.VIBE.hasOwnProperty('Clip2') ){
-                        charts.vibe_clip_chart.addSeries({
-                            name: 'Clip 2'
-                            ,lineWidth: 2
-                            ,data: data.log_data.VIBE.Clip2
-                        });
-                    }
-                }
+                else this.$$('chart:att').hide();
 
                 // Высоты и вертикальное ускорение
-                if( data.log_data.CTUN ){
-                    if( data.log_data.CTUN.hasOwnProperty('Alt') ){
-                        charts.alt_chart.addSeries({
-                            name: 'EKF Altitude'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['Alt']
-                        });
-                    }
-                    if( data.log_data.CTUN.hasOwnProperty('DAlt') ){
-                        charts.alt_chart.addSeries({
-                            name: 'Desired Altitude'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['DAlt']
-                        });
-                    }
-                    if( data.log_data.CTUN.hasOwnProperty('BAlt') ){
-                        charts.alt_chart.addSeries({
-                            name: 'Baro Altitude'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['BAlt']
-                        });
-                    }
-                    if( data.log_data.CTUN.hasOwnProperty('DSAlt') ){
-                        charts.alt_chart.addSeries({
-                            name: 'Desired RF Altitude'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['DSAlt']
-                        });
-                    }
-                    if( data.log_data.CTUN.hasOwnProperty('SAlt') ){
-                        charts.alt_chart.addSeries({
-                            name: 'RF Altitude'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['SAlt']
-                        });
-                    }
-
-                    if( data.log_data.CTUN.hasOwnProperty('CRt') ){
-                        charts.cr_chart.addSeries({
-                            name: 'Actual rate'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['CRt']
-                        });
-                    }
-                    if( data.log_data.CTUN.hasOwnProperty('DCRt') ){
-                        charts.cr_chart.addSeries({
-                            name: 'Desired rate'
-                            ,lineWidth: 1
-                            ,data: data.log_data.CTUN['DCRt']
-                        });
-                    }
+                if( msg_tree.exists('CTUN') ){
+                    window.app.getService('io').rpc('logGetSeries', {id: log_id, series: ['CTUN.Alt', 'CTUN.DAlt', 'CTUN.BAlt', 'CTUN.DSAlt', 'CTUN.SAlt', 'CTUN.DCRt', 'CTUN.CRt']})
+                        .then( data => {
+                            if( data.hasOwnProperty('CTUN.Alt') ){
+                                charts.alt_chart.addSeries({
+                                    name: 'EKF Altitude'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.Alt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.DAlt') ){
+                                charts.alt_chart.addSeries({
+                                    name: 'Desired Altitude'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.DAlt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.BAlt') ){
+                                charts.alt_chart.addSeries({
+                                    name: 'Baro Altitude'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.BAlt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.DSAlt') ){
+                                charts.alt_chart.addSeries({
+                                    name: 'Desired RF Altitude'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.DSAlt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.SAlt') ){
+                                charts.alt_chart.addSeries({
+                                    name: 'Sonar/RF Altitude'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.SAlt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.CRt') ){
+                                charts.cr_chart.addSeries({
+                                    name: 'Actual rate'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.CRt']
+                                });
+                            }
+                            if( data.hasOwnProperty('CTUN.DCRt') ){
+                                charts.cr_chart.addSeries({
+                                    name: 'Desired rate'
+                                    ,lineWidth: 1
+                                    ,data: data['CTUN.DCRt']
+                                });
+                            }
+                        } )
+                        .catch( err => {
+                            Message.error('Failed to load data: ' + err);
+                        } );
+                }
+                else {
+                    this.$$('chart:alt').hide();
+                    this.$$('chart:cr').hide();
                 }
 
                 // PL
-                if( data.log_data.PL ){
-                    charts.pl_chart.addSeries({
-                        name: 'X position'
-                        ,lineWidth: 1
-                        ,data: data.log_data.PL['pX']
-                        ,yAxis: 0
-                    });
-                    charts.pl_chart.addSeries({
-                        name: 'Y position'
-                        ,lineWidth: 1
-                        ,data: data.log_data.PL['pY']
-                        ,yAxis: 0
-                    });
-                    charts.pl_chart.addSeries({
-                        name: 'X velocity'
-                        ,lineWidth: 1
-                        ,data: data.log_data.PL['vX']
-                        ,yAxis: 0
-                    });
-                    charts.pl_chart.addSeries({
-                        name: 'Y velocity'
-                        ,lineWidth: 1
-                        ,data: data.log_data.PL['vY']
-                        ,yAxis: 0
-                    });
-                    charts.pl_chart.addSeries({
-                        name: 'Sensor health'
-                        ,lineWidth: 2
-                        ,data: data.log_data.PL['Heal']
-                        ,yAxis: 1
-                    });
-                    charts.pl_chart.addSeries({
-                        name: 'Target acquired'
-                        ,lineWidth: 3
-                        ,data: data.log_data.PL['TAcq']
-                        ,yAxis: 1
-                    });
+                if( msg_tree.exists('PL') ){
+                    window.app.getService('io').rpc('logGetSeries', {id: log_id, series: ['PL.pX', 'PL.pY', 'PL.vX', 'PL.vY', 'PL.Heal', 'PL.TAcq']})
+                        .then( data => {
+                            if( data.hasOwnProperty('PL.pX') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'X position'
+                                    ,lineWidth: 1
+                                    ,data: data['PL.pX']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('PL.pY') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'Y position'
+                                    ,lineWidth: 1
+                                    ,data: data['PL.pY']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('PL.vX') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'X velocity'
+                                    ,lineWidth: 1
+                                    ,data: data['PL.vX']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('PL.vY') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'Y velocity'
+                                    ,lineWidth: 1
+                                    ,data: data['PL.vY']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('PL.Heal') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'Sensor health'
+                                    ,lineWidth: 2
+                                    ,data: data['PL.Heal']
+                                    ,yAxis: 1
+                                });
+                            }
+                            if( data.hasOwnProperty('PL.TAcq') ){
+                                charts.pl_chart.addSeries({
+                                    name: 'Target acquired'
+                                    ,lineWidth: 3
+                                    ,data: data['PL.TAcq']
+                                    ,yAxis: 1
+                                });
+                            }
+                        } )
+                        .catch( err => {
+                            Message.error('Failed to load data: ' + err);
+                        } );
                 }
+                else this.$$('chart:pl').hide();
 
                 // OF
-                if( data.log_data.OF ){
-                    charts.of_chart.addSeries({
-                        name: 'Flow X'
-                        ,lineWidth: 1
-                        ,data: data.log_data.OF['flowX']
-                        ,yAxis: 0
-                    });
-                    charts.of_chart.addSeries({
-                        name: 'Flow Y'
-                        ,lineWidth: 1
-                        ,data: data.log_data.OF['flowY']
-                        ,yAxis: 0
-                    });
-                    charts.of_chart.addSeries({
-                        name: 'Body X'
-                        ,lineWidth: 1
-                        ,data: data.log_data.OF['bodyX']
-                        ,yAxis: 0
-                    });
-                    charts.of_chart.addSeries({
-                        name: 'Body Y'
-                        ,lineWidth: 1
-                        ,data: data.log_data.OF['bodyX']
-                        ,yAxis: 0
-                    });
-                    charts.of_chart.addSeries({
-                        name: 'Quality'
-                        ,lineWidth: 1
-                        ,data: data.log_data.OF['Qual']
-                        ,yAxis: 1
-                    });
+                if( msg_tree.exists('OF') ){
+                    window.app.getService('io').rpc('logGetSeries', {id: log_id, series: ['OF.flowX', 'OF.flowY', 'OF.bodyX', 'OF.bodyY', 'OF.Qual']})
+                        .then( data => {
+                            if( data.hasOwnProperty('OF.flowX') ){
+                                charts.of_chart.addSeries({
+                                    name: 'Flow X'
+                                    ,lineWidth: 1
+                                    ,data: data['OF.flowX']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('OF.flowY') ){
+                                charts.of_chart.addSeries({
+                                    name: 'Flow Y'
+                                    ,lineWidth: 1
+                                    ,data: data['OF.flowY']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('OF.bodyX') ){
+                                charts.of_chart.addSeries({
+                                    name: 'Body X'
+                                    ,lineWidth: 1
+                                    ,data: data['OF.bodyX']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('OF.bodyY') ){
+                                charts.of_chart.addSeries({
+                                    name: 'Body Y'
+                                    ,lineWidth: 1
+                                    ,data: data['OF.bodyY']
+                                    ,yAxis: 0
+                                });
+                            }
+                            if( data.hasOwnProperty('OF.Qual') ){
+                                charts.of_chart.addSeries({
+                                    name: 'Quality'
+                                    ,lineWidth: 1
+                                    ,data: data['OF.Qual']
+                                    ,yAxis: 1
+                                });
+                            }
+
+                        } )
+                        .catch( err => {
+                            Message.error('Failed to load data: ' + err);
+                        } );
                 }
+                else this.$$('chart:of').hide();
 
-
-                /* произвольные поля
-                if( data.log_data.CTUN ){
-                    for (let field in data.log_data.CTUN) {
-                        if (data.log_data.CTUN.hasOwnProperty(field)) {
-                            ctun_chart.addSeries({
-                                name: field
-                                ,lineWidth: 1
-                                ,data: data.log_data.CTUN[field]
-                            });
-                        }
-                    }
-                }
-                 */
-
+                //
                 // Ошибки на графиках
                 if( data.errors && data.errors.length ) errors_timeline = data.errors;
 
@@ -914,27 +997,10 @@ export default class LogView extends JetView {
                 if( data.modes && data.modes.length ) {
                     modes_timeline = data.modes;
 
-                    // Подготовить набор цветов для отображения режимов
-                    let mode_colors_set = [
-                        'rgba(255,250,32,0.3)'
-                        ,'rgba(255,7,164,0.3)'
-                        ,'rgba(98,5,255,0.3)'
-                        ,'rgba(10,65,255,0.3)'
-                        ,'rgba(9,255,93,0.3)'
-                        ,'rgba(71,83,96,0.3)'
-                        ,'rgba(255,195,16,0.3)'
-                        ,'rgba(255,47,49,0.3)'
-                    ];
                     modes_timeline.forEach( mode => {
-                        if( !modes_colors.hasOwnProperty(mode.num) ) modes_colors[mode.num] = mode_colors_set[Math.floor(Math.random() * mode_colors_set.length)];
+                        if( !modes_colors.hasOwnProperty(mode.num) ) modes_colors[mode.num] = mode_random_colors_set[Math.floor(Math.random() * mode_random_colors_set.length)];
                     });
                 }
-
-                // Показать режимы
-                if( !!switch_modes.getValue() ) show_modes();
-
-                // Скрыть режимы
-                if( !!switch_errors.getValue() ) show_errors();
 
                 // Отрисовка пути на карте
                 map.getMap(true).then(function(mapObj) {
@@ -1079,10 +1145,13 @@ const view_config = {
                                         ,id: 'log_info'
                                         ,localId: 'tpl:info'
                                         ,template:  function(data){
-                                            return 'Type: ' + (data.type || '') + '<br/>' +
-                                                'Log time: ' + (data.log_time ? helpers.readable_seconds(data.log_time) : '')
+                                            console.log(data);
+                                            return '<div style="padding: 10px">Type: ' + (data.type || '') + '</div>'
+                                                   + '<div style="padding: 10px">Log time: ' + (data.l_time || '') + '</div>'
+                                                   + '<div style="padding: 10px">GPS time: ' + (data.gps_time ? webix.Date.dateToStr('%Y-%m-%d %H:%i')(new Date(data.gps_time)) : '') + '</div>'
+                                                   + '<div style="padding: 10px">Location: ' + (data.location || '') + '</div>'
+                                                   + '<div style="padding: 10px">Latitude: ' + (data.lat || '') + ', Longitude: ' + (data.lon || '') + '</div>'
                                         }
-                                        ,height: 100
                                         ,borderless: true
                                     }
 
@@ -1126,30 +1195,31 @@ const view_config = {
             ,{ height: 30, borderless: true }
 
             // Вибрация X, Y, Z
-            ,{ template: '<div id="log_vibe_xyz_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:vibe_xyz', template: '<div id="log_vibe_xyz_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
+
             // Вибрация Clip 0-2
-            ,{ template: '<div id="log_vibe_clip_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:vibe_clip', template: '<div id="log_vibe_clip_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // ATT
-            ,{ template: '<div id="log_att_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:att', template: '<div id="log_att_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // Высоты
-            ,{ template: '<div id="log_alt_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:alt', template: '<div id="log_alt_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // Climb Rate
-            ,{ template: '<div id="log_cr_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:cr', template: '<div id="log_cr_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // Precision Landing
-            ,{ template: '<div id="log_pl_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:pl', template: '<div id="log_pl_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // Oprical Flow
-            ,{ template: '<div id="log_of_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
+            ,{ localId: 'chart:of', template: '<div id="log_of_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
             // Custom chart
@@ -1161,11 +1231,12 @@ const view_config = {
                     ,{
                         gravity: 1
                         ,rows: [
-                            { view: 'toolbar', elements:[{ view: 'button', label: 'Uncheck all', type: 'iconButton', icon: 'mdi mdi-cancel', localId: 'btn:uncheck_all'},{}]}
+                            { view: 'toolbar', borderless: true, elements:[{ view: 'button', label: 'Uncheck all', type: 'iconButton', icon: 'mdi mdi-cancel', localId: 'btn:uncheck_all'},{}]}
                             ,{
                                 gravity: 1
                                 ,view: 'tree'
                                 ,localId: 'tree:msg'
+                                ,borderless: true
                                 ,template: function(obj, common){
                                     return common.icon(obj, common) + (obj.$level === 1 ? '' : common.checkbox(obj, common) ) + "&nbsp;<span>"+obj.value+"</span>";
                                 }

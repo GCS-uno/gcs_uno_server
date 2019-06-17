@@ -85,6 +85,7 @@ export default class LogsListView extends JetView {
 
         //
         // Отслеживание изменений в БД
+        this.app.getService('io').off('logs_look');
         this.app.getService('io').on('logs_look', function(changes){
             if( !changes.hasOwnProperty('e') || !changes.hasOwnProperty('data') ) return;
 
@@ -103,7 +104,7 @@ export default class LogsListView extends JetView {
                 console.log("UPDATE", changes.data);
                 let id = changes.data.id;
                 delete changes.data.id;
-                if( LogsCollection.getItem(changes.data.id) ) LogsCollection.updateItem(id, changes.data);
+                if( LogsCollection.getItem(id) ) LogsCollection.updateItem(id, changes.data);
             }
 
         });
@@ -192,19 +193,20 @@ const view_config = {
             ,localId: 'table:logs'
             ,select: true
             ,columns:[
-                { id: "createdAt", header: "Date uploaded", width: 180, sort: 'string', format: function(d){
+                { id: "date", header: "Date uploaded", width: 180, sort: 'string', format: function(d){
                         return webix.Date.dateToStr('%Y-%m-%d %H:%i')(new Date(d));
                     }},
-                { id: "gps_ts", header: "GPS Time", width: 180},
+                { id: "d_name", header: "Drone name", width: 180, sort: 'string' },
+                { id: "gps_ts", header: "GPS Time", width: 180, format: function(d){
+                        if( !d || d.length < 10 ) return '';
+                        return webix.Date.dateToStr('%Y-%m-%d %H:%i')(new Date(d));
+                    }},
                 { id: "location", header: "Location", fillspace: 1},
-                { id: "l_time", header: "Log Time" , width: 150},
-                { id: "size", header: "Log Size" , width: 150}
+                { id: "l_time", header: "Log Time" , width: 150, sort: 'string' }
             ]
 
         }
     ]
 
 };
-
-
 

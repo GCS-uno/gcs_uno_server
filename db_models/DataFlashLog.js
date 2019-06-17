@@ -10,9 +10,10 @@ const type = thinky.type
 const DataFlashLog = thinky.createModel(TABLE_NAME, {
          id: type.string()
         ,createdAt: type.date().default(r.now())
+        ,drone_id: type.string()
         ,gps_time: type.date()
         ,l_time: type.number()
-        ,size: type.number()
+        ,location_point: type.point()
         ,location: type.string().min(2).max(100)
         ,bin_file: type.string().min(2).max(50)
         ,ind_ts_sz: type.string()
@@ -53,3 +54,4 @@ module.exports = DataFlashLog;
 
 DataFlashLog.ensureIndex("createdAt");
 DataFlashLog.ensureIndex("ind_ts_sz");
+DataFlashLog.ensureIndex("drone_id");

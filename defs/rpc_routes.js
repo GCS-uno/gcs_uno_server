@@ -6,6 +6,7 @@ const common_config = require('../configs/common_config')
      ,_ = require('lodash')
      ,Logger = require('./../utils/logger')
      ,fs = require('fs')
+     ,async = require("async")
      ,helpers = require('./../utils/helpers')
      ,validators = require('./form_validators') // Form fields validators
      ,DroneModel = require('./../db_models/Drone') // Drone model
@@ -713,13 +714,41 @@ const RPC_routes = {
     //
     // Список логов
     logsList: function(data, resolve, reject){
-        DataFlashLogModel.run().then(function(result) {
-            resolve(result);
-        }).catch(function(err){
-            Logger.error('get logs list error');
-            Logger.error(err);
-            reject('No data');
-        });
+
+        try {
+            async.parallel({
+                drones: DroneModel.orderBy('id').bindRun(),
+                logs: DataFlashLogModel.orderBy('id').bindRun()
+            }).then((dataset) => {
+                // Список имен дронов
+                let drones_names = {};
+                _.each(dataset.drones, rec => {  drones_names[rec.id] = rec.name; });
+
+                let logs_list = [];
+
+                _.each(dataset.logs, rec => {
+                    logs_list.push({
+                         id: rec.id
+                        ,date: rec.createdAt
+                        ,d_name: ( rec.drone_id && _.has(drones_names, rec.drone_id) ? drones_names[rec.drone_id] : '')
+                        ,gps_ts: rec.gps_time || ''
+                        ,location: rec.location || ''
+                        ,l_time: helpers.readable_seconds(rec.l_time || 0)
+                    });
+                });
+
+                resolve(logs_list);
+
+            }).catch( err => {
+                Logger.error('Failed to load data');
+                Logger.error(err);
+                reject('Failed to load data');
+            });
+        }
+        catch(e){
+            console.log(e);
+            reject('Failed to load data');
+        }
     },
 
     //
@@ -730,22 +759,19 @@ const RPC_routes = {
             return;
         }
 
-        let start_time_check = helpers.now_ms();
-        let check_point_time = 0;
+        let check_point_time = helpers.now_ms();
 
         DataFlashLogModel.get(data.id.trim()).run()
             .then(function(log) {
 
-                check_point_time = helpers.now_ms();
-                console.log('Read from DB: ' + (check_point_time-start_time_check));
-
                 try {
 
-                    fs.readFile('./../logs/' + log.bin_file + '.json', (err, data) => {
-                        if (err) return reject('Failed to read file');
-
-                        console.log('Read file: ' + (helpers.now_ms()-check_point_time));
-                        check_point_time = helpers.now_ms();
+                    fs.readFile(__dirname + '/../logs/' + log.bin_file + '.json', (err, data) => {
+                        if (err) {
+                            console.log('FS err', err);
+                            console.log();
+                            return reject('Failed to read file');
+                        }
 
                         let log_msgs = JSON.parse(data);
 
@@ -753,9 +779,14 @@ const RPC_routes = {
                         let start_time = null;
                         let end_time = 0;
                         let info = {
-                            type: 'Unknown'
-                            ,log_time: 0
+                             type: 'Unknown'
+                            ,l_time: helpers.readable_seconds(log.l_time)
+                            ,gps_time: log.gps_time
+                            ,location: log.location
+                            ,lat: log.location_point.coordinates[1]
+                            ,lon: log.location_point.coordinates[0]
                         };
+
                         let log_modes = {};
                         let log_modes_timeline = [];
                         let msgs_tree_data = [];
@@ -788,24 +819,13 @@ const RPC_routes = {
                             }
                         });
 
-                        info.log_time = Math.round((end_time-start_time)/1000000);
+                        //info.log_time = Math.round((end_time-start_time)/1000000);
 
-                        //console.log('S', start_time, 'E', end_time, 'L', (end_time-start_time));
-
-                        /* Распечатать список групп и полей
-                        _.mapKeys(m_list, (value, key) => {
-                            console.log(key, value.length);
-                            //console.log(key);
-                            //_.mapKeys(value[0], function(v,k){
-                            //    if( 'TimeUS' !== k && 'mavpackettype' !== k ) console.log('    ' + k);
-                            //});
-                        });
-                         //*/
-
+                        //
                         // Сделать дерево сообщений
                         _.mapKeys(m_list, (series, m_type) => {
                             // Игнорируем системные сообщения
-                            if( ['FMT', 'UNIT', 'MULT', 'FMTU', 'PARM', 'MSG', 'ERR', 'EV', 'MODE'].includes(m_type) ) return;
+                            if( ['FMT', 'UNIT', 'MULT', 'FMTU', 'PARM', 'MSG', 'ERR', 'EV', 'MODE', 'CMD'].includes(m_type) ) return;
 
                             let msg_type = { id: m_type, value: m_type, data: [] };
                             _.mapKeys(series[0], function(value, field){
@@ -815,9 +835,6 @@ const RPC_routes = {
                             });
                             msgs_tree_data.push(msg_type);
                         });
-
-                        console.log('Data parsed in: ' + (helpers.now_ms()-check_point_time));
-                        check_point_time = helpers.now_ms();
 
                         // Lat, Lng
                         let pos_data = {
@@ -888,11 +905,6 @@ const RPC_routes = {
                                 prev_rec_point_1hz = rec_point_1hz;
                             });
                         }
-
-                        //
-                        //  Log data
-                        let log_data = {};
-                        let max_freq = 50;
 
                         //
                         // ERR errors
@@ -989,65 +1001,6 @@ const RPC_routes = {
 
                         }
 
-                        const parse_group =function(group, options={}){ // {float_prec:3}
-                            let data = {};
-                            let float_prec = 3;
-
-                            if( _.has(options, 'float_prec') ) float_prec = options.float_prec;
-
-                            if( _.has(m_list, group) ){
-                                let prev_point_time = -1;
-
-                                _.each(m_list[group], (rec) => {
-                                    // время записи
-                                    let current_point_time = parseInt(rec['TimeUS'])-start_time;
-                                    // ограничение частоты точек
-                                    if( current_point_time-prev_point_time < 1000000/max_freq ) return;
-
-                                    let point_time = Math.round(current_point_time/10000); // round to 0.01 sec
-
-                                    _.mapKeys(rec, (value, field) => {
-                                        if( 'TimeUS' !== field && 'mavpackettype' !== field ){
-                                            if( !_.has(data, field) ) data[field] = [];
-
-                                            if( parseFloat(value) ){
-                                                if( parseFloat(value) === parseInt(value) ) data[field].push([point_time, parseInt(value)]);
-                                                else data[field].push([point_time, parseFloat(parseFloat(value).toPrecision(float_prec))]);
-                                            }
-                                            else {
-                                                data[field].push([point_time, 0]);
-                                            }
-                                        }
-                                    });
-
-                                    prev_point_time = current_point_time;
-
-                                });
-                            }
-
-                            return data;
-
-                        };
-
-                        // ATT
-                        log_data['ATT'] = parse_group('ATT');
-
-                        // VIBE
-                        log_data['VIBE'] = parse_group('VIBE');
-
-                        // CTUN
-                        log_data['CTUN'] = parse_group('CTUN');
-
-                        // PL
-                        if( _.has(m_list, 'PL') ) log_data['PL'] = parse_group('PL');
-
-                        // OF Optical Flow
-                        if( _.has(m_list, 'OF') ) log_data['OF'] = parse_group('OF');
-
-
-                        console.log('Data filtered in: ' + (helpers.now_ms()-check_point_time));
-                        check_point_time = helpers.now_ms();
-
                         //
                         // Отправка данных в браузер
                         resolve({
@@ -1059,9 +1012,9 @@ const RPC_routes = {
                             ,events: events_data
                             ,modes: log_modes_timeline
                             ,msg_tree: msgs_tree_data
-
-                            ,log_data: log_data
                         });
+
+                        console.log('Total process time: ' + (helpers.now_ms()-check_point_time));
 
                     });
 
@@ -1083,37 +1036,21 @@ const RPC_routes = {
         if( !_.has(req_data, 'id') ) return reject('no id');
         if( !_.has(req_data, 'series') || !req_data.series.length ) return reject('no series');
 
-
-        let start_time_check = helpers.now_ms();
-        let check_point_time = 0;
-
-        console.log('Series', req_data.series);
+        let check_point_time = helpers.now_ms();
 
         DataFlashLogModel.get(req_data.id.trim()).run()
             .then(function(log) {
-
-                check_point_time = helpers.now_ms();
-                console.log('Read from DB: ' + (check_point_time-start_time_check));
 
                 try {
 
                     fs.readFile('./../logs/' + log.bin_file + '.json', (err, file_content) => {
                         if (err) return reject('Failed to read file');
 
-                        console.log('Read file: ' + (helpers.now_ms()-check_point_time));
-                        check_point_time = helpers.now_ms();
-
                         let log_msgs = JSON.parse(file_content);
 
                         let m_list = {};
                         let start_time = null;
                         let end_time = 0;
-                        let info = {
-                            type: 'Unknown'
-                            ,log_time: 0
-                        };
-                        let log_modes = {};
-                        let log_modes_timeline = [];
 
                         // Раскидать сообщения по группам
                         _.each(log_msgs, function(m, ind){
@@ -1195,13 +1132,9 @@ const RPC_routes = {
 
                         //
                         // Отправка данных в браузер
-                        resolve({
-                            series: response_series
-                        });
+                        resolve(response_series);
 
-                        console.log('Resolve data: ' + (helpers.now_ms()-check_point_time));
-                        check_point_time = helpers.now_ms();
-
+                        console.log('Series process time: ' + (helpers.now_ms()-check_point_time));
                     });
 
                 }
@@ -1215,7 +1148,6 @@ const RPC_routes = {
                 reject('Log not found in DB');
             });
     },
-
 
     //
     // Удаление логов

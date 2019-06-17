@@ -11,4 +11,6 @@ module.exports = {
     ,RETHINKDB_PORT: 28015
     ,RETHINKDB_DB: 'gcs1'
 
+    ,GMAPS_API_KEY: 'Your Google Maps API key' // Your Google Maps API key
+
 };

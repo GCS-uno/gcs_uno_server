@@ -35,8 +35,10 @@
     "webpack-dev-server": "^3.1.4"
   },
   "dependencies": {
+    "@google/maps": "^0.5.5",
     "@turf/distance": "^6.0.1",
     "@turf/helpers": "^6.1.4",
+    "async": "^3.0.1",
     "body-parser": "^1.18.3",
     "connect-redis": "^3.4.1",
     "engine.io-client": "^3.3.2",
