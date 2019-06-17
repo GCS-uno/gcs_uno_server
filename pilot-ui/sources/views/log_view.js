@@ -31,22 +31,30 @@ export default class LogView extends JetView {
         // Открыть список
         if( !log_id || !LogsCollection.getItem(log_id) ){
             this.app.show('/app/logs_list');
+            console.log('LOG NOT FOUND');
             return;
         }
+
+        console.log('LOG FOUND');
 
         const log_item = LogsCollection.getItem(log_id);
 
         // Сделать в заголовке ссылку на список и добавить название лога
         this.app.getService('topTitle').update([{text: 'Logs', link: '/app/logs_list'}, {text: log_item.name}]);
 
+        // Top controls
+        const btn_remove = webix.$$('log_view:btn:trash');
+        const switch_modes = webix.$$('log_view:sw:modes');
+        const switch_errors = webix.$$('log_view:sw:errors');
+
+        // View controls
         const map = this.$$('map:drone');
         const list_errs = this.$$('list:errors');
         const list_msgs = this.$$('list:messages');
         const list_events = this.$$('list:events');
-        const btn_remove = webix.$$('log_view:btn:trash');
-        const switch_modes = webix.$$('log_view:sw:modes');
-        const switch_errors = webix.$$('log_view:sw:errors');
         const info_tpl = this.$$('tpl:info');
+        const msg_tree = this.$$('tree:msg');
+        const btn_uncheck_all = this.$$('btn:uncheck_all');
 
         // Создание вида после загрузки карты
         map.getMap(true).then(function(mapObj) {
@@ -477,6 +485,58 @@ export default class LogView extends JetView {
             ,series: []
         });
 
+        const custom_chart = Highcharts.chart('custom_chart', {
+            chart: {
+                type: 'line'
+                ,zoomType: 'x'
+            },
+            title: {
+                text: 'Custom graphs'
+            },
+            boost: {
+                enabled: true
+            },
+            plotOptions: {
+                series: {
+                    allowPointSelect: false
+                }
+                ,line: {
+                    marker: {
+                        enabled: false
+                    }
+                }
+            },
+            yAxis: {
+                title: {
+                    text: ''
+                }
+                ,gridLineWidth: 0
+            },
+            xAxis: {
+                title: {
+                    text: 'Log time, seconds'
+                },
+                labels: {
+                    formatter: function() {
+                        return this.value/100;
+                    }
+                }
+                ,type: 'linear'
+            },
+            legend: {
+                align: 'center',
+                verticalAlign: 'top'
+            },
+            tooltip: {
+                enabled: true
+            }
+            ,credits: {
+                enabled: false
+            }
+            ,series: []
+        });
+
+
         const charts = {
             att_chart: att_chart
             ,vibe_xyz_chart: vibe_xyz_chart
@@ -485,6 +545,7 @@ export default class LogView extends JetView {
             ,cr_chart: cr_chart
             ,pl_chart: pl_chart
             ,of_chart: of_chart
+            ,custom_chart: custom_chart
         };
 
         let modes_timeline = [];
@@ -573,7 +634,33 @@ export default class LogView extends JetView {
             else hide_errors();
         });
 
+        let custom_series = {};
 
+        btn_uncheck_all.attachEvent('onItemClick', msg_tree.uncheckAll );
+
+        msg_tree.attachEvent("onItemCheck", function(ser_ind, checked){
+
+            if( checked ){
+                window.app.getService('io').rpc('logGetSeries', {id: log_id, series: [ser_ind]})
+                    .then( data => {
+                        custom_series[ser_ind] = charts.custom_chart.addSeries({
+                            name: ser_ind
+                            ,lineWidth: 1
+                            ,data: data.series[ser_ind]
+                        });
+                    } )
+                    .catch( err => {
+                        Message.error('Failed to load data: ' + err);
+                    } );
+            }
+            else {
+                if( custom_series[ser_ind] ){
+                    custom_series[ser_ind].remove();
+                    custom_series[ser_ind] = null;
+                }
+            }
+
+        });
 
         LogsCollection.Get(log_id)
             .then( data => {
@@ -585,6 +672,13 @@ export default class LogView extends JetView {
 
                 // Инфо
                 info_tpl.setValues(data.info);
+
+                // Tree
+                msg_tree.clearAll();
+                msg_tree.parse(data.msg_tree);
+                msg_tree.sort('value', 'asc');
+
+                // TODO сделать загрузки из новой функции
 
                 // Положение ATT
                 if( data.log_data.ATT ){
@@ -813,7 +907,7 @@ export default class LogView extends JetView {
                 }
                  */
 
-
+                // Ошибки на графиках
                 if( data.errors && data.errors.length ) errors_timeline = data.errors;
 
                 // Подготовка набора цветов для отображения полетных режимов
@@ -836,8 +930,10 @@ export default class LogView extends JetView {
                     });
                 }
 
+                // Показать режимы
                 if( !!switch_modes.getValue() ) show_modes();
 
+                // Скрыть режимы
                 if( !!switch_errors.getValue() ) show_errors();
 
                 // Отрисовка пути на карте
@@ -882,7 +978,6 @@ export default class LogView extends JetView {
 
             })
             .catch( Message.error );
-
 
     }
 
@@ -933,12 +1028,12 @@ const map_options = {
     }
 };
 const map_config = {
-    view:"google-map",
-    localId: "map:drone",
-    zoom: 10,
-    mapType: 'SATELLITE',
-    center:[ 55, 37 ]
-    ,height: 400
+     view:"google-map"
+    ,localId: "map:drone"
+    ,zoom: 10
+    ,mapType: 'SATELLITE'
+    ,center:[ 55, 37 ]
+    ,gravity: 3
 };
 
 // Основной вид
@@ -951,20 +1046,84 @@ const view_config = {
     ,scroll: 'y'
     ,body: {
         rows: [
+            // Карта и таббар с инфо, ошибками и сообщениями
             {
-                view: 'template'
-                ,localId: 'tpl:info'
-                ,template:  function(data){
-                    return 'Type: ' + (data.type || '') + '<br/>' +
-                           'Log time: ' + (data.log_time ? helpers.readable_seconds(data.log_time) : '')
-                }
-                ,height: 100
-                ,borderless: true
-            }
-            ,{ height: 30, borderless: true  }
+                height: 400
+                ,cols: [
 
-            ,map_config
-            ,{ height: 30, borderless: true  }
+                    map_config
+
+                    ,{
+                        gravity: 2
+                        ,rows: [
+                            // TABs
+                            {
+                                 view: 'tabbar'
+                                ,value: 'log_info'
+                                ,multiview: true
+                                ,options: [
+                                     { value: 'Info', id: 'log_info' }
+                                    ,{ value: 'Errors', id: 'log_errors' }
+                                    ,{ value: 'Messages', id: 'log_messages' }
+                                    ,{ value: 'Events', id: 'log_events' }
+                                ]
+                            }
+
+                            // Cells
+                            ,{
+                                animate: false
+                                ,cells:[
+                                    // Info
+                                    {
+                                        view: 'template'
+                                        ,id: 'log_info'
+                                        ,localId: 'tpl:info'
+                                        ,template:  function(data){
+                                            return 'Type: ' + (data.type || '') + '<br/>' +
+                                                'Log time: ' + (data.log_time ? helpers.readable_seconds(data.log_time) : '')
+                                        }
+                                        ,height: 100
+                                        ,borderless: true
+                                    }
+
+                                    // Errors
+                                    ,{
+                                        view: 'list'
+                                        ,id: 'log_errors'
+                                        ,localId: 'list:errors'
+                                        ,template: function(row){
+                                            return helpers.readable_seconds(Math.round(row.t/1000000)) + ' ' + row.msg;
+                                        }
+                                    }
+
+                                    // Messages
+                                    ,{
+                                        view: 'list'
+                                        ,id: 'log_messages'
+                                        ,localId: 'list:messages'
+                                        ,template: function(row){
+                                            return helpers.readable_seconds(row.t) + ' ' + row.msg;
+                                        }
+                                    }
+
+                                    // Events
+                                    ,{
+                                        view: 'list'
+                                        ,id: 'log_events'
+                                        ,localId: 'list:events'
+                                        ,template: function(row){
+                                            return helpers.readable_seconds(row.t) + ' ' + row.ev;
+                                        }
+                                    }
+
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+
+            ,{ height: 30, borderless: true }
 
             // Вибрация X, Y, Z
             ,{ template: '<div id="log_vibe_xyz_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
@@ -993,39 +1152,29 @@ const view_config = {
             ,{ template: '<div id="log_of_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true }
             ,{ height: 30, borderless: true  }
 
-            // Ошибки и сообщения
+            // Custom chart
             ,{
-                height: 400
-                ,cols: [
-                    {
-                        rows: [
-                            { view: 'template', template: 'Errors', type: 'header' }
-                            ,{ view: 'list', localId: 'list:errors', template: function(row){
-                                    return helpers.readable_seconds(Math.round(row.t/1000000)) + ' ' + row.msg;
-                                } }
-                        ]
-                    }
-                    ,{
-                        rows: [
-                            { view: 'template', template: 'Messages', type: 'header' }
-                            ,{ view: 'list', localId: 'list:messages', template: function(row){
-                                    return helpers.readable_seconds(row.t) + ' ' + row.msg;
-                                } }
-                        ]
-                    }
-                    ,{
-                        rows: [
-                            { view: 'template', template: 'Events', type: 'header' }
-                            ,{ view: 'list', localId: 'list:events', template: function(row){
-                                    return helpers.readable_seconds(row.t) + ' ' + row.ev;
-                                } }
-                        ]
-                    }
+                cols: [
 
+                    { template: '<div id="custom_chart" style="width:100%; height:400px;"></div>', height: 400, borderless: true, gravity: 3}
+
+                    ,{
+                        gravity: 1
+                        ,rows: [
+                            { view: 'toolbar', elements:[{ view: 'button', label: 'Uncheck all', type: 'iconButton', icon: 'mdi mdi-cancel', localId: 'btn:uncheck_all'},{}]}
+                            ,{
+                                gravity: 1
+                                ,view: 'tree'
+                                ,localId: 'tree:msg'
+                                ,template: function(obj, common){
+                                    return common.icon(obj, common) + (obj.$level === 1 ? '' : common.checkbox(obj, common) ) + "&nbsp;<span>"+obj.value+"</span>";
+                                }
+                            }
+                        ]
+                    }
                 ]
             }
-
-            ,{height: 100, borderless: true }
+            ,{ height: 50, borderless: true  }
 
         ]
     }

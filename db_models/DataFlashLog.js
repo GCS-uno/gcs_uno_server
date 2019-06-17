@@ -7,15 +7,15 @@ const type = thinky.type
      ,TABLE_NAME = "FlightLogs";
 
 
-const FlightLog = thinky.createModel(TABLE_NAME, {
-        id: type.string()
-        ,name: type.string().min(2).max(50)
-        ,date: type.date()
+const DataFlashLog = thinky.createModel(TABLE_NAME, {
+         id: type.string()
+        ,createdAt: type.date().default(r.now())
+        ,gps_time: type.date()
+        ,l_time: type.number()
+        ,size: type.number()
         ,location: type.string().min(2).max(100)
         ,bin_file: type.string().min(2).max(50)
-        ,status: type.string()
-
-        ,createdAt: type.date().default(r.now())
+        ,ind_ts_sz: type.string()
     }
     , {
         //enforce_missing: false
@@ -24,28 +24,32 @@ const FlightLog = thinky.createModel(TABLE_NAME, {
     }
 );
 
+DataFlashLog.defineStatic("r", function() {
+    return r;
+});
 
-FlightLog.defineStatic("getList", function() {
+DataFlashLog.defineStatic("getList", function() {
 
     return r.table(TABLE_NAME).without('createdAt');
 
 });
 
-FlightLog.defineStatic("look", function() {
+DataFlashLog.defineStatic("look", function() {
 
     return r.table(TABLE_NAME).changes().run();
 
 });
 
 
-FlightLog.define("getView", function() {
+DataFlashLog.define("getView", function() {
     delete this.createdAt;
 
     return this;
 });
 
 
-module.exports = FlightLog;
+module.exports = DataFlashLog;
 
 
-FlightLog.ensureIndex("createdAt");
+DataFlashLog.ensureIndex("createdAt");
+DataFlashLog.ensureIndex("ind_ts_sz");

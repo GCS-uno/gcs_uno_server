@@ -969,13 +969,43 @@ class DroneClient {
                 // Статус загрузки логфайла
                 _this.socket.off('report_log_dl_' + _this.drone.id);
                 _this.socket.on('report_log_dl_' + _this.drone.id, (response) => {
-                    console.log(response);
+                    //console.log(response);
 
-                    if( _this.view && _this.view_enabled && _this.view_els.log_dl_popup ){
-                        if( !_this.view_els.log_dl_popup.isVisible() && 'stopped' !== response.status ) _this.view_els.log_dl_popup.show();
+                    // Если вид не открыт, то ничего не делаем
+                    if( !_this.view || !_this.view_enabled ) return;
 
+                    // Если открыто окно со списком логов
+                    if( _this.view_els.logs_list_popup && _this.view_els.logs_list_popup.isVisible() ){
+                        // Найти в списке лог по id и поставить ему статус "загрузка"
+                        let log_item = _this.view_els.logs_list_table.getItem(response.id);
+                        if( log_item ){
+                            if( 'pend' === response.status && response.hasOwnProperty('c') ){
+                                log_item.s = 'dl';
+                                log_item.dp = response.c.p;
+                            }
+                            else if( 'pars' === response.status ){
+                                log_item.s = 'pr';
+                            }
+                            else if( 'success' === response.status ){
+                                log_item.s = 'v';
+                                log_item.log_id = response.log_id;
+                            }
+                            else {
+                                log_item.s = 0;
+                            }
+                            _this.view_els.logs_list_table.updateItem(response.id, log_item);
+                        }
+                    }
+
+                    // Если окно со списком не открыто, тогда открываем попап загрузки логов
+                    else if( _this.view_els.log_dl_popup ){
+                        if( !_this.view_els.log_dl_popup.isVisible() && 'stopped' !== response.status ) {
+                            _this.view_els.log_dl_popup.show();
+                            _this.view_els.log_dl_popup.showProgress({ type: 'top', position: 0.01, hide: false});
+                        }
+
+                        // Данные для информации в окошке
                         _this.view_els.log_dl_msg.setValues(response);
-
 
                         if( response.hasOwnProperty('c') ){
                             let pr_pos = response.c.p/100;
@@ -1154,6 +1184,7 @@ class DroneClient {
             _this.view_els.takeoff_btn.hide();
             _this.view_els.land_btn.hide();
             _this.view_els.rtl_btn.hide();
+            _this.view_els.btn_cm_loiter.hide();
 
             // Вспомогательные окна
             _this.view_els.takeoff_popup.hide();
@@ -1231,6 +1262,7 @@ class DroneClient {
             ,logs_list_popup: view.$scope.logs_list_popup
             ,logs_list_table: view.$scope.logs_list_popup.queryView({localId: 'dtb:logs_list'})
             ,logs_list_erase: view.$scope.logs_list_popup.queryView({localId: 'btn:erase'})
+            ,logs_list_refresh: view.$scope.logs_list_popup.queryView({localId: 'btn:refresh'})
 
             // Переключатель источника видео
             ,video_switch: view.$scope.fi_popup.queryView({localId: 'switch:video_src'})
@@ -1778,6 +1810,25 @@ class DroneClient {
         _this.view_els.btn_logs_list.attachEvent('onItemClick', () => {
             _this.view_els.logs_list_popup.show();
             _this.view_els.action_menu_popup.hide();
+
+            _this.view_els.logs_list_table.clearAll();
+            _this.view_els.logs_list_table.showOverlay('Loading...');
+
+            _this.view_els.log_dl_popup.hide();
+
+            _this.RPC('getBoardLogs', {})
+                .then(function(result){
+                    _this.view_els.logs_list_table.parse(result);
+                    if( _this.view_els.logs_list_table.count() ){
+                        _this.view_els.logs_list_table.hideOverlay();
+                    }
+                    else {
+                        _this.view_els.logs_list_table.showOverlay('Logs list is empty');
+                    }
+                })
+                .catch(function(err){
+                    Message.error('Failed to load logs: ' + err);
+                });
         });
 
         // Кнопка очистить логи на борте
@@ -1791,7 +1842,8 @@ class DroneClient {
 
                     _this.RPC('eraseBoardLogs', {})
                         .then(function(result){
-                            Message.info('Logs erased ' + result);
+                            Message.info('Logs erased');
+                            _this.view_els.logs_list_table.clearAll();
                         })
                         .catch(function(err){
                             Message.error('Failed to erase logs ' + err);
@@ -1799,6 +1851,86 @@ class DroneClient {
 
                 }
             });
+        });
+
+        // Кнопка Обновить логи с борта
+        _this.view_els.logs_list_refresh.attachEvent('onItemClick', () => {
+            _this.view_els.logs_list_table.clearAll();
+
+            _this.view_els.logs_list_table.showOverlay('Loading...');
+
+            _this.RPC('getBoardLogs', {})
+                .then(function(result){
+                    _this.view_els.logs_list_table.parse(result);
+                    if( _this.view_els.logs_list_table.count() ){
+                        _this.view_els.logs_list_table.hideOverlay();
+                    }
+                    else {
+                        _this.view_els.logs_list_table.showOverlay('Logs list is empty');
+                    }
+                })
+                .catch(function(err){
+                    Message.error('Failed to load logs: ' + err);
+                });
+        });
+
+        // Клики на списке лог файлов
+        // Показать лог
+        _this.view_els.logs_list_table.attachEvent('clickOnView', log_id => {
+            let item = _this.view_els.logs_list_table.getItem(log_id);
+            if( !item ) return;
+
+            _this.view.$scope.show('log_view?id=' + item.log_id);
+        });
+        // Загрузить лог
+        _this.view_els.logs_list_table.attachEvent('clickOnDL', log_id => {
+            _this.RPC('downloadBoardLog', log_id)
+                .then(function(result){
+                    let log_item = _this.view_els.logs_list_table.getItem(log_id);
+                    if( !log_item ) return;
+                    if( 'queued' === result ){
+                        log_item.s = 'q';
+                    }
+                    else if( 'started' === result ){
+                        log_item.s = 'dl';
+                        log_item.dp = 0;
+                    }
+                    _this.view_els.logs_list_table.updateItem(log_id, log_item);
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to load log: ' + err);
+                });
+        });
+        // Отменить загрузку лога
+        _this.view_els.logs_list_table.attachEvent('clickOnCancel', log_id => {
+            _this.RPC('logDLCancel', log_id)
+                .then(function(result){
+                    let log_item = _this.view_els.logs_list_table.getItem(log_id);
+                    if( !log_item ) return;
+
+                    log_item.s = 0;
+                    _this.view_els.logs_list_table.updateItem(log_id, log_item);
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to cancel: ' + err);
+                });
+        });
+        // Отменить ожидание загрузки лога
+        _this.view_els.logs_list_table.attachEvent('clickOnCancelQ', log_id => {
+            _this.RPC('logDLCancelQ', log_id)
+                .then(function(result){
+                    let log_item = _this.view_els.logs_list_table.getItem(log_id);
+                    if( !log_item ) return;
+
+                    log_item.s = 0;
+                    _this.view_els.logs_list_table.updateItem(log_id, log_item);
+
+                })
+                .catch(function(err){
+                    Message.error('Failed to load log: ' + err);
+                });
         });
 
         // Остановка загрузки лога
@@ -1810,17 +1942,17 @@ class DroneClient {
                 callback: function (result) { //setting callback
                     if( !result ) return;
 
-                    _this.socket.rpc('stopLogDL', {drone_id: _this.drone.id})
+                    _this.RPC('logDLCancel', 0)
                         .then(function(result){
-                            Message.info('Log downloading stopped');
                             _this.view_els.log_dl_stop.hide();
                             _this.view_els.log_dl_close.show();
                             setTimeout( () => {
                                 _this.view_els.log_dl_popup.hide();
                             }, 1000);
+
                         })
                         .catch(function(err){
-                            Message.error('Failed to stop ' + err);
+                            Message.error('Failed to cancel: ' + err);
                         });
                 }
             });

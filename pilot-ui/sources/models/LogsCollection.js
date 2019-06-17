@@ -20,6 +20,7 @@ LogsCollection.List = function(){
         .then( data => {
             this.clearAll();
             this.parse(data);
+            this.sort("createdAt", "desc");
             return true;
         }).catch( Message.error );
 
@@ -56,7 +57,6 @@ LogsCollection.Remove = function(log_id){
     });
 
 };
-
 
 
 export default LogsCollection;

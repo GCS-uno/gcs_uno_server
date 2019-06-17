@@ -118,7 +118,6 @@ export default class LogsListView extends JetView {
 
 }
 
-
 //
 // Кнопки для верхней панели приложения
 const top_controls = {
@@ -136,7 +135,6 @@ const top_controls = {
         ,{gravity: 4}
     ]
 };
-
 
 //
 // Загрузчик файлов
@@ -182,7 +180,6 @@ const log_uploader_list = {
     }
 };
 
-
 //
 // Основная таблица со списком
 const view_config = {
@@ -195,11 +192,13 @@ const view_config = {
             ,localId: 'table:logs'
             ,select: true
             ,columns:[
-                { id: "date",	header: "Date", width: 150},
-                { id: "name",	header: "Name", fillspace: 1},
-                { id: "location",	header: "Location", fillspace: 1},
-                { id: "ft",	    header: "Flight Time" , width: 200},
-                { id: "status",	    header: "Status" , width: 100}
+                { id: "createdAt", header: "Date uploaded", width: 180, sort: 'string', format: function(d){
+                        return webix.Date.dateToStr('%Y-%m-%d %H:%i')(new Date(d));
+                    }},
+                { id: "gps_ts", header: "GPS Time", width: 180},
+                { id: "location", header: "Location", fillspace: 1},
+                { id: "l_time", header: "Log Time" , width: 150},
+                { id: "size", header: "Log Size" , width: 150}
             ]
 
         }

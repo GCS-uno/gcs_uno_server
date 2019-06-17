@@ -147,7 +147,6 @@ const keys_prefixes = {
     ,STOP_DRONE_UDP: 'stopDroneUDP_id_' // + DRONE_ID
     ,START_GCS_TCP: 'startDroneGCSTCP_id_' // + DRONE_ID
     ,STOP_GCS_TCP: 'stopDroneGCSTCP_id_' // + DRONE_ID
-    ,STOP_LOG_DL: 'stopLogDL_id_' // + DRONE_ID
     ,DRONE_RPC: 'droneRPC_id_' // + DRONE_ID
 
     // Drone UDP Proxy controller

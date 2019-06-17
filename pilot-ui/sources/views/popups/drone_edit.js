@@ -10,46 +10,19 @@ export default class DroneEditWindow extends JetView {
         return popup_config;
     }
 
-    init(){
-
-    }
+    init(){}
 
     ready(view, url){
         controllers.ready(view);
     }
 
-    destroy(){
-
-    }
+    destroy(){}
 
     showWindow(drone_id){
         controllers.open(this, drone_id);
     }
 
 }
-
-
-const rc_channel_options = [
-     { id: 100, value: 'Disable' }
-    ,{ id: 1, value: 'RC chan 1' }
-    ,{ id: 2, value: 'RC chan 2' }
-    ,{ id: 3, value: 'RC chan 3' }
-    ,{ id: 4, value: 'RC chan 4' }
-    ,{ id: 5, value: 'RC chan 5' }
-    ,{ id: 6, value: 'RC chan 6' }
-    ,{ id: 7, value: 'RC chan 7' }
-    ,{ id: 8, value: 'RC chan 8' }
-    ,{ id: 9, value: 'RC chan 9' }
-    ,{ id: 10, value: 'RC chan 10' }
-    ,{ id: 11, value: 'RC chan 11' }
-    ,{ id: 12, value: 'RC chan 12' }
-    ,{ id: 13, value: 'RC chan 13' }
-    ,{ id: 14, value: 'RC chan 14' }
-    ,{ id: 15, value: 'RC chan 15' }
-    ,{ id: 16, value: 'RC chan 16' }
-    ,{ id: 17, value: 'RC chan 17' }
-    ,{ id: 18, value: 'RC chan 18' }
-];
 
 
 // Форма редактирования дрона
@@ -122,49 +95,22 @@ const popup_config = {
                                     ,type: 'url'
                                 }
 
-                                //*
                                 // joystick
                                 ,{
                                     rows: [
                                         //{ template: 'Joystick', type:"section" }
-                                        { view: 'checkbox', name: 'joystick_enable', labelRight: 'Enable joystick', value: 0, labelWidth: 0, on: {
-                                                'onChange': function(n, o){
-                                                    /*
-                                                    if( n ){
-                                                        this.getFormView().queryView({localId: 'joystick_channels'}).show();
-                                                    }
-                                                    else {
-                                                        this.getFormView().queryView({localId: 'joystick_channels'}).hide();
-                                                    }
-                                                    */
-                                                }
-                                            }
-                                        }
-                                        /*
-                                        ,{
-                                            localId: 'joystick_channels'
-                                            ,hidden: true
-                                            ,rows: [
-                                                {
-                                                    cols: [
-                                                        { view: 'richselect', name: 'joystick_x_channel', label: 'X (right-left)', options: rc_channel_options, width: 250 }
-                                                        ,{ width: 20 }
-                                                        ,{ view: 'checkbox', name: 'joystick_x_rev', label: 'reversed', value: 0, labelWidth: 70, width: 130 }
-                                                    ]
-                                                }
-                                                ,{
-                                                    cols: [
-                                                        { view: 'richselect', name: 'joystick_y_channel', label: 'Y (up-down)', options: rc_channel_options, width: 250 }
-                                                        ,{ width: 20 }
-                                                        ,{ view: 'checkbox', name: 'joystick_y_rev', label: 'reversed', value: 0, labelWidth: 70, width: 130 }
-                                                    ]
-                                                }
-                                            ]
-                                        }
-                                        */
+                                        { view: 'checkbox', name: 'joystick_enable', labelRight: 'Enable joystick', value: 0, labelWidth: 0 }
+
                                     ]
                                 }
-                                //*/
+
+                                // Download log on disarm dl_log_on_disarm
+                                ,{
+                                    rows: [
+                                        //{ template: 'Joystick', type:"section" }
+                                        { view: 'checkbox', name: 'dl_log_on_disarm', labelRight: 'Download latest log on disarm', value: 0, labelWidth: 0 }
+                                    ]
+                                }
 
                                 //*
                                 // mavlink

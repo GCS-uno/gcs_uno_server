@@ -20,10 +20,8 @@ const Drone = thinky.createModel(TABLE_NAME, {
         ,mav_gcs_cmp_id: type.number().default(0).min(0).max(255)
 
         ,joystick_enable: type.number().min(0).max(1).default(0)
-        ,joystick_x_channel: type.number().min(0).max(20).default(0)
-        ,joystick_x_rev: type.number().min(0).max(1).default(0)
-        ,joystick_y_channel: type.number().min(0).max(20).default(0)
-        ,joystick_y_rev: type.number().min(0).max(1).default(0)
+
+        ,dl_log_on_disarm: type.number().min(0).max(1).default(0)
 
         ,createdAt: type.date().default(r.now())
     }
@@ -50,10 +48,6 @@ Drone.defineStatic("look", function() {
 
 Drone.define("getView", function() {
     delete this.createdAt;
-
-    // Для выставления пустого значения в селекте 0 глючит, поэтому для пустого значения ставим пока 100
-    if( this.joystick_x_channel === 0 ) this.joystick_x_channel = 100;
-    if( this.joystick_y_channel === 0 ) this.joystick_y_channel = 100;
 
     return this;
 });

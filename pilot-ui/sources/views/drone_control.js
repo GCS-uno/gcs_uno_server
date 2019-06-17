@@ -276,7 +276,7 @@ const log_download_popup = {
     ,headHeight: 0
     ,head: false
     ,borderless: true
-    ,position: 'top'
+    ,position: 'center'
     ,zIndex: 1000
     ,body: {
         padding: 20
@@ -287,8 +287,8 @@ const log_download_popup = {
                     if( !data.status ) return '';
 
                     if( 'pend' === data.status && data.c ){
-                        return '<div class="log_report_popup">Downloaded ' + data.c.p + '% of ' + data.c.s + '</div>'
-                                + '<div class="log_report_popup">Speed: ' + data.c.sp + '/sec</div>'
+                        return    '<div class="log_report_popup">Downloading log file #<b>' + data.id + '</b></div>'
+                                + '<div class="log_report_popup">' + data.c.p + '% of ' + data.c.s + ' @ ' + data.c.sp + '/sec</div>'
                                 + '<div class="log_report_popup">Remaining time: ' + data.c.tr + '</div>';
                     }
                     else return data.msg;
@@ -324,36 +324,42 @@ const logs_list_popup = {
                 ,height: 300
                 ,columns: [
                     { id: 'id', header: '#', width: 50 },
-                    { id: 'ts', header: 'Time', fillspace: true },
+                    { id: 'ts', header: 'Time', fillspace: true, format: function(ts){
+                        let d = new Date();
+                        d.setTime(ts);
+                        return webix.Date.dateToStr("%Y-%m-%d %H:%i")(d);
+                    } },
                     { id: 'sz', header: 'Size', width: 100 },
-                    { id: 'btn', header: '', width: 100, template: function(row){
-                            if( row.view ) return "<div class='webix_el_button'><button class='act_view'>View</button></div>";
-                            else return "<div class='webix_el_button'><button class='act_dl'>Download</button></div>";
+                    { id: 'btn', header: '', width: 80, template: function(row){
+                            if( row.s === 'v' ) return '<span class="act_view" style="text-decoration: underline;cursor: pointer" title="View downloaded log file">view</span>';
+                            if( row.s === 'dl' ) return (row.hasOwnProperty('dp') ? row.dp + '% ' : '') + '<span class="webix_icon mdi mdi-close-circle act_canc" title="Stop downloading" style="cursor:pointer"></span>';
+                            if( row.s === 'pr' ) return 'parsing';
+                            if( row.s === 'q' ) return 'wait  <span class="webix_icon mdi mdi-close-circle act_canc_q" title="Stop downloading" style="cursor:pointer"></span>';
+                            else return '&nbsp;<span class="webix_icon mdi mdi-download-outline act_dl" title="Download" style="cursor:pointer"></span>';
                         } }
                 ]
                 ,onClick: {
-                    act_view: function(ev, id, html){
-                        webix.alert("VIEW " + id);
+                     act_view: function(ev, id, html){
+                        this.callEvent('clickOnView', [id.toString()]);
                     }
                     ,act_dl: function(ev, id, html){
-                        webix.alert("DOWNLOAD " + id);
+                        this.callEvent('clickOnDL', [id.toString()]);
+                    }
+                    ,act_canc: function(ev, id, html){
+                        this.callEvent('clickOnCancel', [id.toString()]);
+                    }
+                    ,act_canc_q: function(ev, id, html){
+                        this.callEvent('clickOnCancelQ', [id.toString()]);
                     }
                 }
-                ,data: [
-                    {id: 1, ts: '324234234', sz: 324234, view: 0 }
-                    ,{id: 2, ts: '324234234', sz: 23121, view: 1 }
-                    ,{id: 3, ts: '324234232', sz: 43543, view: 0 }
-                    ,{id: 4, ts: '3242342645', sz: 12122, view: 1 }
-                    ,{id: 5, ts: '324234238', sz: 7686, view: 1 }
-                ]
             }
             ,{
                 cols: [
-                    { view: 'button', label: 'Erase all', type: 'iconButton', icon: 'mdi mdi-trash', localId: 'btn:erase' }
-                    ,{width:20}
-                    ,{ view: 'button', label: 'Close', type: 'iconButton', icon: 'mdi mdi-close', click: function(){
-                            this.getTopParentView().hide();
-                        } }
+                    { view: 'button', label: 'Erase all', type: 'iconButton', icon: 'mdi mdi-delete', localId: 'btn:erase' }
+                    ,{width: 10}
+                    ,{ view: 'button', label: 'Refresh', type: 'iconButton', icon: 'mdi mdi-refresh', localId: 'btn:refresh' }
+                    ,{width: 10}
+                    ,{ view: 'button', label: 'Close', type: 'iconButton', icon: 'mdi mdi-close', click: function(){ this.getTopParentView().hide(); } }
                 ]
             }
         ]

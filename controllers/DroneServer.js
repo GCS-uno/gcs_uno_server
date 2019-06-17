@@ -19,7 +19,7 @@ const common_config = require('../configs/common_config')
      ,turf_helpers = require('@turf/helpers')
      ,turf_dist = require('@turf/distance').default
      ,DroneServersList = {}
-     ,FlightLogModel = require('./../db_models/FlightLog');
+     ,DataFlashLogModel = require('../db_models/DataFlashLog');
 
 const io = require('socket.io-emitter')({ host: server_config.REDIS_HOST, port: server_config.REDIS_PORT });
 
@@ -779,7 +779,7 @@ class HeartbeatController {
             //
             // Состояние арм / дисарм
             let armed = (128 & fields.base_mode ? 1 : 0);
-            if( drone.telem1.get('armed') !== armed ) drone.events.emit((armed ? 'armed' : 'disarmed'));
+            if( drone.telem1.get('armed') !== null && drone.telem1.get('armed') !== armed ) drone.events.emit((armed ? 'armed' : 'disarmed'));
             drone.telem1.set('armed', armed);
 
             //
@@ -1184,16 +1184,12 @@ class RPCController {
 
         this.methods = {};
 
-        console.log('RPC controller set ', RK.DRONE_RPC(drone.id));
-
         drone.RPC.on(RK.DRONE_RPC(drone.id), (data, channel, response_callback) => {
-            console.log('RPC controller ', channel);
-            if( _.has(this.methods, data.method) ) this.methods[data.method](data, response_callback);
-            else response_callback('wrong method');
-
-            // response_callback(null, {'success': data});
-            // response_callback('error message');
-
+            if( _.has(this.methods, data.method) ) this.methods[data.method](data.data, response_callback);
+            else {
+                Logger.error('Wrong droneRPC method: ' + data.method);
+                response_callback('wrong method');
+            }
         });
     }
 
@@ -1283,15 +1279,6 @@ class CommandController {
                 })
                 .catch( response_callback );
         });
-        //
-        // Остановка загрузки логфайла
-        drone.RPC.on(RK.STOP_LOG_DL(drone.id), (data, channel, response_callback) => {
-
-            if( drone.log_download.stop() ) response_callback(null, 'success');
-            else response_callback('failed');
-
-        });
-
 
 
         // При удалении и остановке дрона
@@ -2002,17 +1989,23 @@ class LogDownloadController {
     constructor(drone){
         this.drone = drone;
 
-        this.last_log_num = 0;
-        this.last_log_time_utc = 0;
-        this.last_log_size = 0;
+        this.logs_list = [];
+        this.log_size_by_id = {};
+        this.log_ts_by_id = {};
+
         this.block_size = 46080; // == 512 кусков по 90 байт
 
+        this.current_dl_log_num = 0;
+        this.current_dl_log_size = 0;
+        this.current_dl_log_ts = 0;
         this.log_buffer = '';
         this.download_in_progress = false;
+        this.parsing_in_progress = false;
         this.current_offset = 0;
         this.next_block_from_offset = 0;
         this.max_req_num = 0;
         this.reqs = 0;
+        this.download_queue = [];
 
         const _this = this;
 
@@ -2026,7 +2019,33 @@ class LogDownloadController {
             drone.send2io('report_log_dl', data);
         };
 
-        //const report_process_throttled = _.throttle(this_report_process, 1000);
+        this.event_handlers = function(){
+
+            let handlers = {};
+
+            return {
+                set: function(event, timeout, resolve, reject) {
+                    if( !_.has(handlers, event) ) handlers[event] = {};
+
+                    let h_uid = nodeUuid.v4().substr(0, 10);
+                    handlers[event][h_uid] = {resolve: resolve, reject: reject};
+
+                    handlers[event][h_uid].timeout = setTimeout(function(){
+                        handlers[event][h_uid]['reject']('timeout');
+                        _.unset(handlers[event], h_uid);
+                    }, timeout);
+                }
+                ,call: function(event, data){
+                    if( !_.has(handlers, event) ) return;
+
+                    _.mapKeys(handlers[event], function(rec, uuid){
+                        clearTimeout(rec.timeout);
+                        rec.resolve(data);
+                        _.unset(handlers[event], uuid);
+                    });
+                }
+            }
+        }();
 
         // Эта функция запускается, если нет сообщений с данными лога больше 500мс
         // Запускает запрос следующего блока или прекращает загрузку
@@ -2038,17 +2057,17 @@ class LogDownloadController {
 
             // Если таймаут срабатывал больше допустимого кол-ва раз
             if( this.reqs >= this.max_req_num ){
+                Logger.error('Max Req reached. Downloaded', this.log_buffer.length, 'of', this.current_dl_log_size);
+                this.report_process({status: 'failed', id: this.current_dl_log_num, msg: 'Failed to download log file'});
                 this.cancel_process();
-                Logger.error('Max Req reached. Downloaded', this.log_buffer.length, 'of', this.last_log_size);
-                this.report_process({status: 'failed', msg: 'Failed to download log file'});
                 return;
             }
 
             // Если дрон не онлайн
             if( !drone.info.isOnline() ){
                 this.cancel_process();
-                Logger.error('Drone gone offline', this.log_buffer.length, 'of', this.last_log_size);
-                this.report_process({status: 'failed', msg: 'Failed: Drone gone offline'});
+                Logger.error('Drone gone offline', this.log_buffer.length, 'of', this.current_dl_log_size);
+                this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed: Drone gone offline'});
                 return;
             }
 
@@ -2062,13 +2081,13 @@ class LogDownloadController {
             this.drone.mavlink.sendMessage('LOG_REQUEST_DATA', {
                 target_system: this.drone.mavlink.sysid
                 ,target_component: this.drone.mavlink.compid
-                ,id: this.last_log_num
+                ,id: this.current_dl_log_num
                 ,ofs: this.current_offset
                 ,count: this.block_size
             });
             progress_check();
 
-            console.log('Req', this.current_offset, 'of', this.last_log_size);
+            console.log('Req', this.current_offset, 'of', this.current_dl_log_size);
         };
         this.set_process_timeout = () => {
             if( process_timeout ) clearTimeout(process_timeout);
@@ -2076,38 +2095,48 @@ class LogDownloadController {
                 process_timeout_callback();
             }, 500);
         };
-        this.cancel_process = (reset_buffer = true) => {
+        this.cancel_process = () => {
             if( process_timeout ) clearTimeout(process_timeout);
             this.download_in_progress = false;
-            if( reset_buffer ) {
-                this.log_buffer = '';
-                this.current_offset = 0;
-            }
+            this.parsing_in_progress = false;
+            this.log_buffer = '';
+            this.current_offset = 0;
+            this.current_dl_log_num = 0;
+
+            this.drone.mavlink.sendMessage('LOG_REQUEST_END', {
+                target_system: this.drone.mavlink.sysid
+                ,target_component: this.drone.mavlink.compid
+            });
+
+            setTimeout(() => {
+                if( drone.info.isOnline() ) this.download_next();
+            }, 2000);
         };
 
         this.download_complete = () => {
-            this.cancel_process(false);
+            if( process_timeout ) clearTimeout(process_timeout);
+            this.parsing_in_progress = true;
+            this.download_in_progress = false;
 
             if( !this.log_buffer.length ){
                 Logger.error('Empty log file buffer');
-                this.report_process({status: 'failed', msg: 'Failed to receive data'});
+                this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to receive data'});
+                this.cancel_process();
                 return;
             }
 
-            Logger.info('Log download complete', this.log_buffer.length, 'of', this.last_log_size);
-            this.report_process({status: 'pars', msg: 'Download complete. Parsing...'});
+            Logger.info('Log download complete', this.log_buffer.length, 'of', this.current_dl_log_size);
+            this.report_process({status: 'pars', id: _this.current_dl_log_num, msg: 'Download complete. Parsing...'});
 
             // Придумать имя файла
             let file_name = helpers.now() + '_' + nodeUuid.v4().substr(0, 8) + '.bin';
 
             // Записать в файл
             fs.writeFile('./../logs/' + file_name, this.log_buffer, 'binary', err => {
-                // reset buffers
-                this.cancel_process();
-
                 // Если ошибка
                 if( err ){
-                    this.report_process({status: 'failed', msg: 'Failed to save file'});
+                    this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save file'});
+                    this.cancel_process();
                     Logger.error('Failed to write file');
                     return;
                 }
@@ -2128,7 +2157,8 @@ class LogDownloadController {
                     } );
                     pyprocess.stdout.on('close', function() {
                         if( !parse_response.includes('OK') ){
-                            _this.report_process({status: 'failed', msg: 'Failed to parse file'});
+                            _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to parse file'});
+                            _this.cancel_process();
                             Logger.error('Failed to parse file');
                             return;
                         }
@@ -2136,9 +2166,9 @@ class LogDownloadController {
                         Logger.info('JSON file saved');
 
                         // Завести запись в БД
-                        const new_log = new FlightLogModel({
-                            name: 'auto ' + file_name
-                            ,bin_file: file_name
+                        const new_log = new DataFlashLogModel({
+                             bin_file: file_name
+                            ,ind_ts_sz: _this.current_dl_log_num + '_' + _this.current_dl_log_ts + '_' + _this.current_dl_log_size
                         });
 
                         try {
@@ -2148,17 +2178,20 @@ class LogDownloadController {
                             // Save new log
                             new_log.save()
                                 .then( doc => {
-                                    _this.report_process({status: 'success', msg: 'Log file uploaded and parsed', log_id: doc.id});
-                                    Logger.info('new log saved ' + doc.id);
+                                    _this.report_process({status: 'success', id: _this.current_dl_log_num, msg: 'Log file uploaded and parsed', log_id: doc.id});
+                                    _this.cancel_process();
+                                    Logger.info('new log saved ', doc);
                                 })
                                 .catch( e => {
-                                    _this.report_process({status: 'failed', msg: 'Failed to save to DB (0)'});
+                                    _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (0)'});
+                                    _this.cancel_process();
                                     Logger.error(e);
                                 });
 
                         }
                         catch(e){
-                            _this.report_process({status: 'failed', msg: 'Failed to save to DB (1)'});
+                            _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to save to DB (1)'});
+                            _this.cancel_process();
 
                             // Response with error
                             if( 'ValidationError' === e.name ){
@@ -2175,7 +2208,8 @@ class LogDownloadController {
 
                 }
                 catch (e) {
-                    _this.report_process({status: 'failed', msg: 'Failed to parse file'});
+                    _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Failed to parse file'});
+                    _this.cancel_process();
                     Logger.error('Failed to process file', e);
                 }
 
@@ -2190,8 +2224,8 @@ class LogDownloadController {
             let period = helpers.now_ms()-last_speed_point;
             if( period >= 1000 ){
                 current_speed = Math.round(bytes_counter/(period/1000));
-                time_remaining = Math.round((this.last_log_size-this.current_offset)/current_speed);
-                let progress_percent = Math.round((this.current_offset/this.last_log_size)*100);
+                time_remaining = Math.round((this.current_dl_log_size-this.current_offset)/current_speed);
+                let progress_percent = Math.round((this.current_offset/this.current_dl_log_size)*100);
 
 
                 last_speed_point = helpers.now_ms();
@@ -2199,9 +2233,10 @@ class LogDownloadController {
 
                 _this.report_process({
                     status: 'pend'
+                    ,id: _this.current_dl_log_num
                     ,c: {
                          p: progress_percent
-                        ,s: helpers.readable_bytes(this.last_log_size)
+                        ,s: helpers.readable_bytes(this.current_dl_log_size)
                         ,sp: helpers.readable_bytes(current_speed)
                         ,tr: helpers.readable_seconds(time_remaining)
                     }
@@ -2212,24 +2247,34 @@ class LogDownloadController {
         // Автозагрузка последнего лог файла после дизарма
         drone.events.on('disarmed', () => { this.auto_download() });
 
+        // Обнулить очередь, если дрон ушел в оффлайн
+        drone.events.on('isOffline', uptime => {
+            if( this.download_in_progress ){
+                _this.report_process({status: 'failed', id: _this.current_dl_log_num, msg: 'Drone gone offline'});
+                _this.cancel_process();
+            }
+            this.download_queue = [];
+        });
+
         // Прочитать список логфайлов
         drone.mavlink.on('LOG_ENTRY', fields => {
-            //console.log('LOG_ENTRY', fields);
-            if( !this.last_log_num || this.last_log_num !== parseInt(fields.num_logs) ) {
-                this.last_log_num = parseInt(fields.num_logs);
+            if( !parseInt(fields.num_logs) ){
+                this.logs_list = [];
+                this.event_handlers.call('listLoad', this.logs_list);
+                return;
             }
 
-            if( this.last_log_num === parseInt(fields.id) ){
-                this.last_log_time_utc = parseInt(fields.time_utc);
-                this.last_log_size = parseInt(fields.size);
-                this.download_last();
-            }
+            this.logs_list.push({ id: fields.id ,ts: fields.time_utc ,sz: fields.size });
+            this.log_size_by_id[fields.id] = fields.size;
+            this.log_ts_by_id[fields.id] = fields.time_utc;
+
+            if( parseInt(fields.last_log_num) === parseInt(fields.id) )  this.event_handlers.call('listLoad', this.logs_list);
         });
 
         // Получение данных логфайла
         drone.mavlink.on('LOG_DATA', fields => {
             // Если не в процессе скачивания или id лога не то, что нужно, то ничего не делать
-            if( !this.download_in_progress || parseInt(fields.id) !== this.last_log_num ) return;
+            if( !this.download_in_progress || parseInt(fields.id) !== this.current_dl_log_num ) return;
 
             // Длина данных
             let count = parseInt(fields.count);
@@ -2269,58 +2314,175 @@ class LogDownloadController {
 
         });
 
+        // Удаление логов на борту
         drone.RPC2.setMethod('eraseBoardLogs', (data, response_handler) => {
-            response_handler(null, 'OK-7');
+            if( !drone.info.isOnline() ) response_handler('Drone offline');
+
+            _this.drone.mavlink.sendMessage('LOG_ERASE', {
+                target_system: _this.drone.mavlink.sysid
+                ,target_component: _this.drone.mavlink.compid
+            });
+            response_handler(null, 'OK');
+        });
+
+        // Загрузить и отправить список лог файлов на борту
+        drone.RPC2.setMethod('getBoardLogs', (data, response_handler) => {
+            this.get_list()
+                .then( list => {
+
+                    // Сделать список подписей логов
+                    let logs_check_list = [];
+                    _.each(list, rec => { logs_check_list.push(rec.id + '_' + rec.ts + '_' + rec.sz) });
+
+                    // Найти в БД логи
+                    DataFlashLogModel.getAll(DataFlashLogModel.r().args(logs_check_list), {index: 'ind_ts_sz'}).run()
+                        .then( result => {
+                            let ready_list = [];
+                            let downloaded_list = {};
+                            if( result.length ) _.each(result, rec => { downloaded_list[rec.ind_ts_sz] = rec.id });
+
+                            _.each(list, item => {
+
+                                let ind_ts_sz = item.id + '_' + item.ts + '_' + item.sz;
+
+                                // Если этот лог загружается в данный момент
+                                if( _this.download_in_progress && _this.current_dl_log_num === item.id ){
+                                    item.s = 'dl';
+                                    item.dp = Math.round(_this.current_offset/_this.current_dl_log_size*100);
+                                }
+                                else if( _.includes(_this.download_queue, item.id) ){
+                                    item.s = 'q';
+                                }
+                                else if( _.has(downloaded_list, ind_ts_sz) ){
+                                    item.s = 'v';
+                                    item.log_id = downloaded_list[ind_ts_sz];
+                                }
+                                else {
+                                    item.s = 0;
+                                }
+
+                                item.sz = helpers.readable_bytes(item.sz);
+
+                                ready_list.push(item);
+                            });
+
+                            response_handler(null, ready_list);
+                        })
+                        .catch( err => {
+                            console.log('DB error', err);
+                            response_handler('DB error');
+                        });
+
+                })
+                .catch( err => {
+                    response_handler('Err 1');
+                    Logger.error('Failed to load logs list', err);
+                });
+        });
+
+        // Запрос загрузки лог файла по id
+        drone.RPC2.setMethod('downloadBoardLog', (log_id, response_handler) => {
+            // Если в данный момент идет загрузка лога, то текущий номер помещается в очередь
+            if( this.download_in_progress || this.parsing_in_progress ){
+                this.download_queue.push(log_id);
+                response_handler(null, 'queued');
+            }
+            else {
+                if( this.download(log_id) ) response_handler(null, 'started');
+                else response_handler('Failed to start');
+            }
+        });
+
+        // Остановка загрузки по id
+        drone.RPC2.setMethod('logDLCancel', (log_id, response_handler) => {
+            this.stop(log_id);
+            response_handler(null, 'OK');
+        });
+
+        // Удаление лога из списка ожидания
+        drone.RPC2.setMethod('logDLCancelQ', (log_id, response_handler) => {
+            this.download_queue = _.filter(this.download_queue, function(i){return i !== log_id});
+            response_handler(null, 'OK');
         });
 
     }
 
     // Запросить список логфайлов на борту
     get_list(){
+        const _this = this;
 
-        this.drone.mavlink.sendMessage('LOG_REQUEST_LIST', {
-            target_system: this.drone.mavlink.sysid
-            ,target_component: this.drone.mavlink.compid
-            ,start: 0
-            ,end: 0xffff
+        this.logs_list = [];
+        this.log_size_by_id = {};
+        this.log_ts_by_id = {};
+
+        return new Promise(function(resolve, reject){
+            _this.event_handlers.set('listLoad', 5000, resolve, reject);
+
+            _this.drone.mavlink.sendMessage('LOG_REQUEST_LIST', {
+                target_system: _this.drone.mavlink.sysid
+                ,target_component: _this.drone.mavlink.compid
+                ,start: 0
+                ,end: 0xffff
+            });
         });
 
     }
 
-    // Запустить скачку последнего лога
-    download_last(){
-        if( !this.last_log_num || !this.last_log_time_utc || !this.last_log_size ) return;
-
-        // TODO проверить в БД на дубликат
-
+    // Запустить скачку лога по id
+    download(log_id){
         // Запросить скачивание логфайла
-        Logger.info('DOWNLOAD last log ', this.last_log_num);
+        Logger.info('DOWNLOAD log ' + log_id);
 
+        this.current_dl_log_num = log_id;
+        this.current_dl_log_size = this.log_size_by_id[log_id];
+        this.current_dl_log_ts = this.log_ts_by_id[log_id];
+
+        if( !this.current_dl_log_num || !this.current_dl_log_size || this.current_dl_log_size <= 0 ) return false;
+
+        this.download_in_progress = true;
         this.log_buffer = '';
         this.current_offset = 0;
         this.next_block_from_offset = this.current_offset + this.block_size;
-        this.download_in_progress = true;
         this.reqs = 1;
-        this.max_req_num = Math.round(this.last_log_size/this.block_size)+2;
+        this.max_req_num = Math.round(this.current_dl_log_size/this.block_size)+2;
 
         this.request_next_block();
         this.set_process_timeout();
+
+        return true;
+    }
+
+    // Загрузка следующего файла из списка
+    download_next(){
+        if( this.download_in_progress || this.parsing_in_progress || !this.download_queue.length ) return;
+
+        let next_log = this.download_queue.shift();
+        this.download(next_log);
 
     }
 
     // Запуск автозагрузки
     auto_download(){
         // Если выключен параметр сохранения лога в файл после дизарма, то ничего не делать
-        if( this.drone.params.get('LOG_FILE_DSRMROT') !== 1 ) return;
+        if( this.drone.params.get('LOG_FILE_DSRMROT') !== 1 || this.drone.data.db_params.dl_log_on_disarm !== 1 ) return;
 
-        // Запросить список логов, если есть что-то, то определить последний и загрузить в download_last()
-        this.get_list();
+        // Запросить список логов, если есть что-то, то определить последний и загрузить в download()
+        this.get_list()
+            .then( list => {
+                if( !list.length ) return;
+                this.download(list[list.length-1].id);
+            })
+            .catch( err => {
+                Logger.info('Auto download of logs failed (may be no logs)');
+            });
     }
 
     // Остановка загрузки
-    stop(){
-        this.cancel_process();
-        this.report_process({status: 'stopped', msg: 'Downloading stopped'});
+    stop(log_id=0){
+        if( this.download_in_progress && ( this.current_dl_log_num === log_id || 0 === log_id )){
+            this.report_process({status: 'stopped', id: this.current_dl_log_num, msg: 'Downloading stopped'});
+            this.cancel_process();
+        }
         return true;
     }
 
@@ -2451,10 +2613,7 @@ class DroneServer {
                 mav_gcs_sys_id
                 mav_gcs_cmp_id
                 joystick_enable
-                joystick_x_channel
-                joystick_x_rev
-                joystick_y_channel
-                joystick_y_rev
+                dl_log_on_disarm
          */
 
         let start_time = helpers.now_ms();

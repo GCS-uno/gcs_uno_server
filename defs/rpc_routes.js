@@ -11,7 +11,7 @@ const common_config = require('../configs/common_config')
      ,DroneModel = require('./../db_models/Drone') // Drone model
      ,FlightPlanModel = require('./../db_models/FlightPlan') // Полетные задания пилотов
      ,FlightPlanItemModel = require('./../db_models/FlightPlanItem')
-     ,FlightLogModel = require('./../db_models/FlightLog');
+     ,DataFlashLogModel = require('../db_models/DataFlashLog');
 
 
 const log_err_msg = function(subsys, ecode){
@@ -223,46 +223,13 @@ const RPC_routes = {
 
                             drone.joystick_enable = parseInt(data.joystick_enable) > 0 ? 1 : 0;
 
-                            /* RC_OVERRIDE
-                            if( parseInt(data.joystick_enable) > 0
-                                && _.has(data, 'joystick_x_channel')
-                                && _.has(data, 'joystick_y_channel')
-                                && _.has(data, 'joystick_x_rev')
-                                && _.has(data, 'joystick_y_rev') ){
+                        }
 
-                                let joystick_x_channel = parseInt(data.joystick_x_channel) || 0
-                                    ,joystick_x_rev = parseInt(data.joystick_x_rev) ? 1 : 0
-                                    ,joystick_y_channel = parseInt(data.joystick_y_channel) || 0
-                                    ,joystick_y_rev = parseInt(data.joystick_y_rev) ? 1 : 0;
+                        // Загрузка лога после дизарма
+                        if( _.has(data, 'dl_log_on_disarm') ){
 
-                                if( joystick_x_channel < 1 || joystick_x_channel > 18 ){
-                                    joystick_x_channel = 0;
-                                }
+                            drone.dl_log_on_disarm = parseInt(data.dl_log_on_disarm) > 0 ? 1 : 0;
 
-                                if( joystick_y_channel < 1 || joystick_y_channel > 18 ){
-                                    joystick_y_channel = 0;
-                                }
-
-                                if( joystick_x_channel > 0 || joystick_y_channel > 0 ){
-                                    if( joystick_x_channel === joystick_y_channel ){
-                                        reject('RC channels must be different');
-                                        return;
-                                    }
-
-                                    drone.joystick_enable = 1;
-                                    drone.joystick_x_channel = joystick_x_channel;
-                                    drone.joystick_x_rev = joystick_x_rev;
-                                    drone.joystick_y_channel = joystick_y_channel;
-                                    drone.joystick_y_rev = joystick_y_rev;
-                                }
-                                else {
-                                    drone.joystick_enable = 0;
-                                }
-                            }
-                            else {
-                                drone.joystick_enable = 0;
-                            }
-                            */
                         }
 
                     }
@@ -368,21 +335,11 @@ const RPC_routes = {
     },
 
     //
-    // Stop logs downloading
-    stopLogDL: function(data, resolve, reject){
-        RPC.req(RK.STOP_LOG_DL(data.drone_id), {})
-            .then( resolve )
-            .catch( reject );
-    },
-
+    // Drone RPC
     droneRPC: function(data, resolve, reject){
-        if( !_.has(data, 'drone_id') || !_.has(data, 'method') ){
-            reject('Invalid request');
-            return;
-        }
+        if( !_.has(data, 'drone_id') || !_.has(data, 'method') ) return reject('Invalid request');
 
         if( !_.has(data, 'data') ) data.data = {};
-        console.log('RPC sent ', data.method, RK.DRONE_RPC(data.drone_id));
         RPC.req(RK.DRONE_RPC(data.drone_id), {method: data.method, data: data.data})
             .then( resolve )
             .catch( reject );
@@ -756,7 +713,7 @@ const RPC_routes = {
     //
     // Список логов
     logsList: function(data, resolve, reject){
-        FlightLogModel.getList().run().then(function(result) {
+        DataFlashLogModel.run().then(function(result) {
             resolve(result);
         }).catch(function(err){
             Logger.error('get logs list error');
@@ -775,9 +732,8 @@ const RPC_routes = {
 
         let start_time_check = helpers.now_ms();
         let check_point_time = 0;
-        console.log('start');
 
-        FlightLogModel.get(data.id.trim()).run()
+        DataFlashLogModel.get(data.id.trim()).run()
             .then(function(log) {
 
                 check_point_time = helpers.now_ms();
@@ -786,10 +742,7 @@ const RPC_routes = {
                 try {
 
                     fs.readFile('./../logs/' + log.bin_file + '.json', (err, data) => {
-                        if (err){
-                            reject('Failed to read file');
-                            return;
-                        }
+                        if (err) return reject('Failed to read file');
 
                         console.log('Read file: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
@@ -805,6 +758,7 @@ const RPC_routes = {
                         };
                         let log_modes = {};
                         let log_modes_timeline = [];
+                        let msgs_tree_data = [];
 
                         // Раскидать сообщения по группам
                         _.each(log_msgs, function(m, ind){
@@ -836,9 +790,9 @@ const RPC_routes = {
 
                         info.log_time = Math.round((end_time-start_time)/1000000);
 
-                        console.log('S', start_time, 'E', end_time, 'L', (end_time-start_time));
+                        //console.log('S', start_time, 'E', end_time, 'L', (end_time-start_time));
 
-                        //* Распечатать список групп и полей
+                        /* Распечатать список групп и полей
                         _.mapKeys(m_list, (value, key) => {
                             console.log(key, value.length);
                             //console.log(key);
@@ -847,6 +801,20 @@ const RPC_routes = {
                             //});
                         });
                          //*/
+
+                        // Сделать дерево сообщений
+                        _.mapKeys(m_list, (series, m_type) => {
+                            // Игнорируем системные сообщения
+                            if( ['FMT', 'UNIT', 'MULT', 'FMTU', 'PARM', 'MSG', 'ERR', 'EV', 'MODE'].includes(m_type) ) return;
+
+                            let msg_type = { id: m_type, value: m_type, data: [] };
+                            _.mapKeys(series[0], function(value, field){
+                                if( 'TimeUS' === field || 'mavpackettype' === field ) return;
+
+                                msg_type.data.push({ id: m_type+'.'+field, value: field});
+                            });
+                            msgs_tree_data.push(msg_type);
+                        });
 
                         console.log('Data parsed in: ' + (helpers.now_ms()-check_point_time));
                         check_point_time = helpers.now_ms();
@@ -1021,13 +989,10 @@ const RPC_routes = {
 
                         }
 
-                        const parse_group =function(group, options={}){ // {ints:[],text:[],float_prec:3}
+                        const parse_group =function(group, options={}){ // {float_prec:3}
                             let data = {};
-                            let parse_int_fields = [];
-                            //let parse_text_fields = [];
                             let float_prec = 3;
-                            if( _.has(options, 'ints') && options.ints.length ) parse_int_fields = options.ints;
-                            //if( _.has(options, 'text') && options.text.length ) parse_text_fields = options.text;
+
                             if( _.has(options, 'float_prec') ) float_prec = options.float_prec;
 
                             if( _.has(m_list, group) ){
@@ -1039,19 +1004,18 @@ const RPC_routes = {
                                     // ограничение частоты точек
                                     if( current_point_time-prev_point_time < 1000000/max_freq ) return;
 
-                                    //let point_time = (current_time/1000000).toPrecision(2);
                                     let point_time = Math.round(current_point_time/10000); // round to 0.01 sec
 
                                     _.mapKeys(rec, (value, field) => {
                                         if( 'TimeUS' !== field && 'mavpackettype' !== field ){
                                             if( !_.has(data, field) ) data[field] = [];
-                                            // Ints
-                                            if( parse_int_fields.length && _.includes(parse_int_fields, field) ){
-                                                data[field].push([point_time, parseInt(value)]);
+
+                                            if( parseFloat(value) ){
+                                                if( parseFloat(value) === parseInt(value) ) data[field].push([point_time, parseInt(value)]);
+                                                else data[field].push([point_time, parseFloat(parseFloat(value).toPrecision(float_prec))]);
                                             }
-                                            // Floats
                                             else {
-                                                data[field].push([point_time, parseFloat(parseFloat(value).toPrecision(float_prec))]);
+                                                data[field].push([point_time, 0]);
                                             }
                                         }
                                     });
@@ -1069,17 +1033,16 @@ const RPC_routes = {
                         log_data['ATT'] = parse_group('ATT');
 
                         // VIBE
-                        log_data['VIBE'] = parse_group('VIBE', {ints:['Clip0', 'Clip1', 'Clip2']});
+                        log_data['VIBE'] = parse_group('VIBE');
 
                         // CTUN
                         log_data['CTUN'] = parse_group('CTUN');
 
                         // PL
-                        log_data['PL'] = parse_group('PL', {ints:['Heal', 'TAcq']});
+                        if( _.has(m_list, 'PL') ) log_data['PL'] = parse_group('PL');
 
                         // OF Optical Flow
-                        log_data['OF'] = parse_group('OF');
-
+                        if( _.has(m_list, 'OF') ) log_data['OF'] = parse_group('OF');
 
 
                         console.log('Data filtered in: ' + (helpers.now_ms()-check_point_time));
@@ -1088,14 +1051,14 @@ const RPC_routes = {
                         //
                         // Отправка данных в браузер
                         resolve({
-                            info: info
+                             info: info
                             ,pos_gps: pos_data.gps
                             ,pos_pos: pos_data.pos
-
                             ,errors: err_data
                             ,messages: msgs_data
                             ,events: events_data
                             ,modes: log_modes_timeline
+                            ,msg_tree: msgs_tree_data
 
                             ,log_data: log_data
                         });
@@ -1115,6 +1078,146 @@ const RPC_routes = {
     },
 
     //
+    // Загрузка данных одного лога {id: log_ID}
+    logGetSeries: function(req_data, resolve, reject){
+        if( !_.has(req_data, 'id') ) return reject('no id');
+        if( !_.has(req_data, 'series') || !req_data.series.length ) return reject('no series');
+
+
+        let start_time_check = helpers.now_ms();
+        let check_point_time = 0;
+
+        console.log('Series', req_data.series);
+
+        DataFlashLogModel.get(req_data.id.trim()).run()
+            .then(function(log) {
+
+                check_point_time = helpers.now_ms();
+                console.log('Read from DB: ' + (check_point_time-start_time_check));
+
+                try {
+
+                    fs.readFile('./../logs/' + log.bin_file + '.json', (err, file_content) => {
+                        if (err) return reject('Failed to read file');
+
+                        console.log('Read file: ' + (helpers.now_ms()-check_point_time));
+                        check_point_time = helpers.now_ms();
+
+                        let log_msgs = JSON.parse(file_content);
+
+                        let m_list = {};
+                        let start_time = null;
+                        let end_time = 0;
+                        let info = {
+                            type: 'Unknown'
+                            ,log_time: 0
+                        };
+                        let log_modes = {};
+                        let log_modes_timeline = [];
+
+                        // Раскидать сообщения по группам
+                        _.each(log_msgs, function(m, ind){
+                            try {
+                                if( _.has(m, 'mavpackettype') ){
+                                    if( _.has(m_list, m['mavpackettype']) ){
+                                        m_list[m['mavpackettype']].push(m);
+                                    }
+                                    else {
+                                        m_list[m['mavpackettype']] = [m];
+                                    }
+
+                                    if( _.has(m, 'TimeUS') ){
+                                        let timeus = parseInt(m['TimeUS']);
+                                        if( !start_time ) start_time = timeus;
+                                        if( timeus > end_time ) end_time = timeus;
+                                    }
+                                }
+
+                            }
+                            catch (err ){
+                                console.log('ERR', ind, err);
+                            }
+                        });
+
+                        // проверить какие запрошены данные и сформировать ответные сообщения
+                        let max_freq = 50;
+                        const parse_group =function(group, options={}){ // {float_prec:3}
+                            let data = {};
+                            let float_prec = 3;
+
+                            if( _.has(options, 'float_prec') ) float_prec = options.float_prec;
+
+                            if( _.has(m_list, group) ){
+                                let prev_point_time = -1;
+
+                                _.each(m_list[group], (rec) => {
+                                    // время записи
+                                    let current_point_time = parseInt(rec['TimeUS'])-start_time;
+                                    // ограничение частоты точек
+                                    if( current_point_time-prev_point_time < 1000000/max_freq ) return;
+
+                                    let point_time = Math.round(current_point_time/10000); // round to 0.01 sec
+
+                                    _.mapKeys(rec, (value, field) => {
+                                        if( 'TimeUS' !== field && 'mavpackettype' !== field ){
+                                            if( !_.has(data, field) ) data[field] = [];
+
+                                            if( parseFloat(value) ){
+                                                if( parseFloat(value) === parseInt(value) ) data[field].push([point_time, parseInt(value)]);
+                                                else data[field].push([point_time, parseFloat(parseFloat(value).toPrecision(float_prec))]);
+                                            }
+                                            else {
+                                                data[field].push([point_time, 0]);
+                                            }
+                                        }
+                                    });
+
+                                    prev_point_time = current_point_time;
+
+                                });
+                            }
+
+                            return data;
+
+                        };
+
+                        let response_series = {};
+                        let parsed_groups = {};
+                        _.each(req_data.series, ser => {
+                            let [msg, field] = ser.split('.');
+                            if( msg && field && _.has(m_list, msg) ){
+                                if( !_.has(parsed_groups, msg) ) parsed_groups[msg] = parse_group(msg);
+                                if( _.has(parsed_groups[msg], field) ){
+                                    response_series[ser] = parsed_groups[msg][field];
+                                }
+                            }
+                        });
+
+                        //
+                        // Отправка данных в браузер
+                        resolve({
+                            series: response_series
+                        });
+
+                        console.log('Resolve data: ' + (helpers.now_ms()-check_point_time));
+                        check_point_time = helpers.now_ms();
+
+                    });
+
+                }
+                catch( err ){
+                    console.log('ERR', err);
+                    reject('Bin parse error');
+                }
+
+            })
+            .catch(function(){
+                reject('Log not found in DB');
+            });
+    },
+
+
+    //
     // Удаление логов
     logRemove: function(data, resolve, reject){ console.log('Log remove act');
         if( !_.has(data, 'id') ){
@@ -1122,7 +1225,7 @@ const RPC_routes = {
             return;
         }
 
-        FlightLogModel.get(data.id)
+        DataFlashLogModel.get(data.id)
             .run().then( log => {
                 let log_file = log.bin_file;
 

@@ -75,11 +75,6 @@ export default {
         const save_button = view.$scope.$$('button:save');
         const values = form.getValues();
 
-        if( values.joystick_x_channel !== 100 && values.joystick_x_channel === values.joystick_y_channel ){
-            Message.error('RC channels should be different');
-            return;
-        }
-
         form.disable();
         save_button.disable();
 

@@ -21,7 +21,7 @@ const server_config = require('../configs/server_config')
     ,rpc_routes = require('../defs/rpc_routes')
     // DB Models
     ,DroneModel = require('../db_models/Drone')
-    ,FlightLogModel = require('./../db_models/FlightLog')
+    ,DataFlashLogModel = require('../db_models/DataFlashLog')
     ,nodeUuid = require('node-uuid')
 ; /////////
 
@@ -93,9 +93,8 @@ try {
                         }
 
                         // Завести запись в БД
-                        const new_log = new FlightLogModel({
-                            name: 'test ' + helpers.now_ms()
-                            ,bin_file: file_name
+                        const new_log = new DataFlashLogModel({
+                            bin_file: file_name
                         });
 
                         try {
@@ -253,7 +252,7 @@ try {
         //
         // Трансляция изменений БД
         // Смотрим изменения в БД с дронами и управляем серверами
-        FlightLogModel.look()
+        DataFlashLogModel.look()
             .then(function(cursor){
                 cursor.each(function(err, data){
 

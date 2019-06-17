@@ -101,10 +101,7 @@ export default class FlightPlansView extends JetView {
         const fp_table = this.$$('tbl:flight_plans');
         const _this = this;
 
-        console.log('HERE 3');
-
         this.app.getService('topTitle').update('Flight plans');
-
 
         // Кнопка Новое задание
         button_new.attachEvent('onItemClick', function(){
