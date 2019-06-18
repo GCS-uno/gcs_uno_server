@@ -9,6 +9,7 @@ const LogsCollection = new webix.DataCollection({
         //
         // После загрузки списка с сервера
         ,'onAfterLoad': function(){}
+
     }
 });
 

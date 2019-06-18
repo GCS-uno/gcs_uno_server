@@ -1249,32 +1249,46 @@ class DroneClient {
             ,land_btn: webix.$$('dvt:btn:land')
             ,rtl_btn: webix.$$('dvt:btn:rtl')
 
-            // Всплывающие окна
+            //
+            // Всплывающие окна и их элементы
+
+            // Action menu
             ,action_menu_popup: view.$scope.action_menu
+            ,slider_servo5: view.$scope.action_menu.queryView({localId: 'sw:ser5'})
+            ,slider_servo6: view.$scope.action_menu.queryView({localId: 'sw:ser6'})
+            ,sw_servo7: view.$scope.action_menu.queryView({localId: 'sw:ser7'})
+            ,sw_servo8: view.$scope.action_menu.queryView({localId: 'sw:ser8'})
+            ,btn_logs_list: view.$scope.action_menu.queryView({localId: 'btn:get_logs_list'})
+            ,btn_params_list: view.$scope.action_menu.queryView({localId: 'btn:params_list'})
+
+            // Takeoff
             ,takeoff_popup: view.$scope.takeoff_popup
             ,takeoff_alt: view.$scope.takeoff_popup.queryView({localId: 'fld:alt'})
             ,takeoff_confirm: view.$scope.takeoff_popup.queryView({localId: 'btn:takeoff'})
+
+            // Log download
             ,log_dl_popup: view.$scope.log_dl_popup
             ,log_dl_msg: view.$scope.log_dl_popup.queryView({localId: 'tpl:log_msg'})
             ,log_dl_stop: view.$scope.log_dl_popup.queryView({localId: 'btn:stop'})
             ,log_dl_view: view.$scope.log_dl_popup.queryView({localId: 'btn:view'})
             ,log_dl_close: view.$scope.log_dl_popup.queryView({localId: 'btn:close'})
+
+            // Logs list
             ,logs_list_popup: view.$scope.logs_list_popup
             ,logs_list_table: view.$scope.logs_list_popup.queryView({localId: 'dtb:logs_list'})
             ,logs_list_erase: view.$scope.logs_list_popup.queryView({localId: 'btn:erase'})
             ,logs_list_refresh: view.$scope.logs_list_popup.queryView({localId: 'btn:refresh'})
 
+            // Params List
+            ,params_list_popup: view.$scope.params_list_popup
+            ,params_list_tab: view.$scope.params_list_popup.queryView({localId: 'tb:params_tab'})
+            ,params_list_table: view.$scope.params_list_popup.queryView({localId: 'dtb:params_list'})
+            ,params_list_table_save: view.$scope.params_list_popup.queryView({localId: 'dtb:params_list_save'})
+            ,params_list_save: view.$scope.params_list_popup.queryView({localId: 'btn:save'})
+
+
             // Переключатель источника видео
             ,video_switch: view.$scope.fi_popup.queryView({localId: 'switch:video_src'})
-
-            // Серво
-            ,slider_servo5: view.$scope.action_menu.queryView({localId: 'sw:ser5'})
-            ,slider_servo6: view.$scope.action_menu.queryView({localId: 'sw:ser6'})
-            ,sw_servo7: view.$scope.action_menu.queryView({localId: 'sw:ser7'})
-            ,sw_servo8: view.$scope.action_menu.queryView({localId: 'sw:ser8'})
-
-            // Кнопка Board logs list
-            ,btn_logs_list: view.$scope.action_menu.queryView({localId: 'btn:get_logs_list'})
 
         };
         //
@@ -1306,7 +1320,6 @@ class DroneClient {
         const drone_udp_info = view.$scope.info_popup.queryView({localId: 'tpl:info_udp'});
         const gcs_tcp_switch = view.$scope.info_popup.queryView({localId: 'sw:gcs_tcp'});
         const gcs_tcp_info = view.$scope.info_popup.queryView({localId: 'tpl:info_tcp'});
-
 
         // Джойстик
         const joystick_left = view.$scope.fi_popup.queryView({j_id: 'j_left'}),
@@ -1962,6 +1975,112 @@ class DroneClient {
         _this.view_els.log_dl_view.attachEvent('onItemClick', () => {
             if( _this.drone_data.latest_log_id ) _this.view.$scope.show('log_view?id=' + _this.drone_data.latest_log_id);
         });
+
+        // Открыть окно с параметрами
+        _this.view_els.btn_params_list.attachEvent('onItemClick', () => {
+            _this.view_els.params_list_popup.show();
+            _this.view_els.action_menu_popup.hide();
+            _this.view_els.params_list_save.enable();
+
+            _this.view_els.params_list_table.clearAll();
+            _this.view_els.params_list_table_save.clearAll();
+            _this.view_els.params_list_table.showOverlay('Loading...');
+
+            let save_tab = _this.view_els.params_list_tab.getOption('params_save');
+            save_tab.value = 'Unsaved (0)';
+            _this.view_els.params_list_tab.refresh();
+
+            _this.RPC('getBoardParams', {})
+                .then(function(result){
+                    if( !result.length ){
+                        _this.view_els.params_list_table.showOverlay('No data');
+                    }
+                    else {
+                        _this.view_els.params_list_table.hideOverlay();
+                        _this.view_els.params_list_table.parse(result);
+                        _this.view_els.params_list_table.sort('id');
+                    }
+                })
+                .catch(function(err){
+                    Message.error('Failed to load params list: ' + err);
+                    _this.view_els.params_list_table.showOverlay('Failed to get data');
+                });
+        });
+
+        // Редактирование параметров
+        _this.view_els.params_list_table.attachEvent('onAfterEditStop', (state, editor) => {
+            if( state.old == state.value ) return;
+
+            let item_to_save = _this.view_els.params_list_table_save.getItem(editor.row);
+
+            // Если в списке измененных значений его нет, то добавить
+            if( !item_to_save ) _this.view_els.params_list_table_save.add({id: editor.row, o_val: state.old, n_val: state.value});
+
+            // Если есть и значение вернули к старому, то удалить
+            else if( item_to_save.o_val == state.value ) _this.view_els.params_list_table_save.remove(editor.row);
+
+            // Если есть и значение другое, то изменить
+            else _this.view_els.params_list_table_save.updateItem(editor.row, {n_val: state.value});
+
+            let save_tab = _this.view_els.params_list_tab.getOption('params_save');
+            save_tab.value = 'Unsaved (' + _this.view_els.params_list_table_save.count() + ')';
+            _this.view_els.params_list_tab.refresh();
+
+        });
+
+        // Удаление редактированного параметра из списка на сохранение
+        _this.view_els.params_list_table_save.attachEvent('clickCancel', id => {
+            let old_val =_this.view_els.params_list_table_save.getItem(id).o_val;
+
+            _this.view_els.params_list_table.updateItem(id, {val: old_val});
+            _this.view_els.params_list_table_save.remove(id);
+
+            let save_tab = _this.view_els.params_list_tab.getOption('params_save');
+            save_tab.value = 'Unsaved (' + _this.view_els.params_list_table_save.count() + ')';
+            _this.view_els.params_list_tab.refresh();
+        });
+
+        // Сохранение новых параметров на борт
+        _this.view_els.params_list_save.attachEvent('onItemClick', () => {
+            _this.view_els.params_list_tab.setValue('params_save');
+
+            let changed_params = _this.view_els.params_list_table_save.count();
+
+            if( !changed_params ) return webix.alert('Nothing to save');
+
+            webix.confirm({
+                ok: "SAVE",
+                cancel: "Cancel",
+                text: `Confirm changing ${changed_params} parameter${changed_params>1?'s':''}?`,
+                callback: function (result) {
+                    if( !result ) return;
+
+                    _this.view_els.params_list_save.disable();
+
+                    let params_to_save = [];
+                    _this.view_els.params_list_table_save.eachRow( row_id => {
+                        let row = _this.view_els.params_list_table_save.getItem(row_id);
+                        params_to_save.push({id: row.id, val: row.n_val});
+                    });
+
+                    _this.RPC('saveBoardParams', params_to_save)
+                        .then(function(result){
+                            Message.info('Params saved');
+                            _this.view_els.params_list_table_save.clearAll();
+                            let save_tab = _this.view_els.params_list_tab.getOption('params_save');
+                            save_tab.value = 'Unsaved (0)';
+                            _this.view_els.params_list_tab.refresh();
+                            _this.view_els.params_list_save.enable();
+                        })
+                        .catch(function(err){
+                            Message.error('Failed to save params: ' + err);
+                            _this.view_els.params_list_save.enable();
+                        });
+
+                }
+            });
+        });
+
 
         // переключатель видеоканалов
         _this.view_els.video_switch.attachEvent('onChange', value => {

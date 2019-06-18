@@ -81,8 +81,6 @@ export default class LogsListView extends JetView {
 
         LogsCollection.List();
 
-        //console.log(this.app.getService('io'));
-
         //
         // Отслеживание изменений в БД
         this.app.getService('io').off('logs_look');

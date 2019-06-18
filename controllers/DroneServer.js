@@ -2549,13 +2549,9 @@ class ParamsController {
         // Проверка на полный список параметров
         this.check_params = () => {
             this.missing_params = [];
-            //console.log('checking params');
-
             for( let i = 0, k = this.params_count; i < k; i++ ){
                 if( !_.has(this.params_by_index, i.toString()) ) this.missing_params.push(i);
             }
-
-            //console.log('Missing params', this.missing_params);
 
             if( !this.missing_params.length ) return;
 
@@ -2584,16 +2580,27 @@ class ParamsController {
 
         // Прочитать и загрузить параметры
         drone.mavlink.on('PARAM_VALUE', fields => {
-            if( parseInt(fields.param_index) === 65535 ) return;
+
+            let param_count = parseInt(fields.param_count)
+                ,param_index = parseInt(fields.param_index)
+                ,param_id = fields.param_id.replace(/\0/g, '').trim()
+                ,param_type = parseInt(fields.param_type);
+            let param_value = (param_type > 8 ? parseFloat(fields.param_value) : parseInt(fields.param_value));
+
+            // Индекс больше счетчика, значит это подтверждение параметра
+            if( param_index > param_count && _.has(this.params, param_id) ){
+                this.params[param_id].value = param_value;
+                return;
+            }
 
             if( this.check_timeout ) clearTimeout(this.check_timeout);
 
-            let param_id = fields.param_id.replace(/\0/g, '').trim();
-            this.params[param_id] = parseInt(fields.param_type) > 8 ? parseFloat(fields.param_value) : parseInt(fields.param_value);
-            this.params_by_index[parseInt(fields.param_index).toString()] = param_id;
+            this.params[param_id] = { type: param_type, value: param_value };
+            this.params_by_index[param_index.toString()] = param_id;
 
-            if( !this.params_count || this.params_count !== parseInt(fields.param_count) ) this.params_count = parseInt(fields.param_count);
+            if( !this.params_count || this.params_count !== param_count ) this.params_count = param_count;
 
+            // Через 2 секунды проверить все ли параметры пришли
             this.check_timeout = setTimeout( () => {
                 this.check_params();
             }, 2000);
@@ -2604,6 +2611,37 @@ class ParamsController {
         drone.events.on('isOnline', downtime => {
             if( downtime > 30 )
                 this.request_params();
+        });
+
+        // Запрос списка параметров
+        drone.RPC2.setMethod('getBoardParams', (data, response_handler) => {
+
+            if( !this.params_count ){
+                return response_handler("Parameters are not loaded yet");
+            }
+
+            let params_list = [];
+            _.mapKeys(this.params, (p_data, id) => {
+                params_list.push({id: id, val: p_data.value, tp: p_data.type});
+            });
+
+            response_handler(null, params_list);
+        });
+
+        // Сохранение параметров
+        drone.RPC2.setMethod('saveBoardParams', (data, response_handler) => {
+
+            if( !this.drone.info.isOnline() ) return response_handler('Drone gone offline');
+
+            if( !_.isArray(data) || !data.length ) return response_handler('Empty list');
+
+            _.each(data, param => {
+                console.log('each', param.id, param.val);
+                this.set(param.id, param.val);
+            });
+
+            response_handler(null, 'OK');
+
         });
 
     }
@@ -2621,11 +2659,24 @@ class ParamsController {
     }
 
     get(param_id){
-        return _.has(this.params, param_id) ? this.params[param_id] : null;
+        return _.has(this.params, param_id) ? this.params[param_id].value : null;
     }
 
     set(param_id, param_value){
-        // TODO
+        console.log('Param set', param_id, param_value);
+
+        if( !_.has(this.params, param_id) ) return;
+
+        param_value = (this.params[param_id].type > 8 ? parseFloat(param_value) : parseInt(param_value));
+
+        this.drone.mavlink.sendMessage('PARAM_SET', {
+            target_system: this.drone.mavlink.sysid
+            ,target_component: this.drone.mavlink.compid
+            ,param_id: param_id.length < 16 ? param_id + "\0" : param_id
+            ,param_value: param_value
+            ,param_type: this.params[param_id].type
+        });
+
     }
 
 }

@@ -21,7 +21,9 @@ export default class DroneView extends JetView {
         this.takeoff_popup = this.ui(takeoff_popup);
         this.log_dl_popup = this.ui(log_download_popup);
             webix.extend(this.log_dl_popup, webix.ProgressBar);
+
         this.logs_list_popup = this.ui(logs_list_popup);
+        this.params_list_popup = this.ui(params_list_popup);
 
         top_controls_id = webix.$$('top_view_controls').addView(top_controls);
 
@@ -119,15 +121,6 @@ const action_menu_popup = {
                 ]
             }
 
-            // Список лог файлов
-            ,{
-                view: 'button'
-                ,type: 'iconButton'
-                ,localId: 'btn:get_logs_list'
-                ,label: 'Board logs list'
-                ,icon: 'mdi mdi-file-table'
-            }
-
             // Кнопка Загрузить полетный план с борта
             ,{
                 view: 'button'
@@ -137,7 +130,25 @@ const action_menu_popup = {
                 ,icon: 'mdi mdi-download'
             }
 
-            ,{}
+            // Список лог файлов
+            ,{
+                view: 'button'
+                ,type: 'iconButton'
+                ,localId: 'btn:get_logs_list'
+                ,label: 'Board logs list'
+                ,icon: 'mdi mdi-file-table'
+            }
+
+            // Кнопка окна бортовых параметров
+            ,{
+                view: 'button'
+                ,type: 'iconButton'
+                ,localId: 'btn:params_list'
+                ,label: 'Board parameters'
+                ,icon: 'mdi mdi-settings'
+            }
+
+
         ]
 
     }
@@ -366,6 +377,75 @@ const logs_list_popup = {
     }
 };
 
+// Окошко со списком бортовых параметров
+const params_list_popup = {
+    view: 'window'
+    ,id: 'drone_view_popup_params_list'
+    ,head: 'Board parameters'
+    ,borderless: true
+    ,position: 'center'
+    ,zIndex: 1000
+    ,body: {
+        padding: 10
+        ,width: 500
+        ,height: 400
+        ,rows: [
+            // TABs
+            {
+                view: 'tabbar'
+                ,value: 'params_cur'
+                ,multiview: true
+                ,localId: 'tb:params_tab'
+                ,options: [
+                     { value: 'Full list', id: 'params_cur' }
+                    ,{ value: 'Unsaved (0)', id: 'params_save' }
+                ]
+            }
+
+            // Cells
+            , {
+                animate: false
+                , cells: [
+                    {
+                        view: 'datatable'
+                        ,id: 'params_cur'
+                        ,localId: 'dtb:params_list'
+                        ,editable: true
+                        ,select: true
+                        ,columns: [
+                            { id: 'id', header: ['Param ID', {content: 'textFilter', colspan: 2}], sort:"string", fillspace: 1 },
+                            { id: 'val', header: {text: 'Value', css:{'text-align':'right'}}, fillspace: 1, editor: "text", css:{'text-align':'right'} }
+                        ]
+                    }
+                    ,{
+                        view: 'datatable'
+                        ,id: 'params_save'
+                        ,localId: 'dtb:params_list_save'
+                        ,select: true
+                        ,columns: [
+                             { id: 'id', header: 'Param ID', fillspace: 1 }
+                            ,{ id: 'o_val', header: {text: 'Old Value', css:{'text-align':'right'}}, fillspace: 1, css:{'text-align':'right'} }
+                            ,{ id: 'n_val', header: {text: 'New Value', css:{'text-align':'right'}}, fillspace: 1, css:{'text-align':'right'} }
+                            ,{ id: 'canc_icon', header: '', width: 50, css:{'text-align':'center'}, template: '<span class="webix_icon mdi mdi-close-circle act_canc" title="Cancel changes" style="cursor:pointer"></span>' }
+                        ]
+                        ,onClick: {
+                            act_canc: function (ev, id, html) {
+                                this.callEvent('clickCancel', [id.toString()]);
+                            }
+                        }
+                    }
+                ]
+            }
+            ,{
+                cols: [
+                     { view: 'button', label: 'Save', type: 'iconButton', icon: 'mdi mdi-content-save', localId: 'btn:save' }
+                    ,{ width: 10 }
+                    ,{ view: 'button', label: 'Close', type: 'iconButton', icon: 'mdi mdi-close', click: function(){ this.getTopParentView().hide(); } }
+                ]
+            }
+        ]
+    }
+};
 
 
 //
@@ -435,7 +515,7 @@ const top_controls = {
             view: 'button'
             ,type: 'iconButton'
             ,id: 'dvt:btn:cm_loiter'
-            ,label: 'CM LOIT'
+            ,label: 'Loiter'
             ,icon: 'mdi mdi-ship-wheel'
             ,tooltip: 'Send Loiter Unlimited command'
             ,autowidth: true
