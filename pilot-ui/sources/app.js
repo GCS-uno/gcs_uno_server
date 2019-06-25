@@ -14,7 +14,7 @@ webix.ready(() => {
 	//
 	// new app constructor
 	const app = new JetApp({
-		start: "/app/drones_list"
+		start: "/app/control_tower"
 		,router: StoreRouter
 		,debug: true // FIXME
 	});
@@ -94,6 +94,7 @@ webix.protoUI({
 	$init: function(config){
 
 		this.j_id = config.j_id;
+		this.color = config.color || 'red';
 
 		this.$view.innerHTML = '<div class="joystick" id=' + config.j_id + '></div>';
 
@@ -119,7 +120,7 @@ webix.protoUI({
 			zone: el,
 			mode: "static",
 			position: {left: "50%", top: "50%"},
-			color: "red"
+			color: _this.color
 		});
 
 		joystick.on("move", function(e, data){

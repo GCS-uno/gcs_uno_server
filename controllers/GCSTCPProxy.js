@@ -65,7 +65,7 @@ class GCSTCPProxy {
                 _this.redisSubBuf.on('message', function(channel, message){
 
                     // Если сообщение больше  максимума или клиент не подключен
-                    if( message.length > common_config.MAVLINK_MAX_MSG_SIZE || !_this.client ) return;
+                    if( message.length > 500 || !_this.client ) return;
 
                     // Проверка канала
                     if( channel.toString() === _this.MAVLINK_FROM_DRONE ){

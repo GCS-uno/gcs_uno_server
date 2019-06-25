@@ -1,5 +1,6 @@
 "use strict";
 
+import common_config from '../../../configs/common_config';
 import helpers from '../../../utils/helpers';
 import Message from '../plugins/Message';
 import DronesCollection from './DronesCollection';
@@ -353,6 +354,8 @@ class DroneClient {
         //
         // Обработчик кликов на карте для установки точки назначения
         this.mapClickHandler = function(event){
+            console.log(event.latLng.lat(), event.latLng.lng());
+
             if( ignore_next_click ){
                 ignore_next_click = false;
                 return;
@@ -1072,6 +1075,13 @@ class DroneClient {
             _this.socket.emit('drone_gcs_connect', _this.drone.id, connection_response);
         });
 
+        const show_view_els = function(els){
+            els.map( el => _this.view_els[el] ? _this.view_els[el].show() : '');
+        };
+        const hide_view_els = function(els){
+            els.map( el => _this.view_els[el] ? _this.view_els[el].hide() : '');
+        };
+
         //
         // Дрон онлайн (ставится когда приходит инфо {online:1}
         this.status_online = function(){
@@ -1100,36 +1110,22 @@ class DroneClient {
             _this.view.enable();
             _this.view.$scope.fi_popup.enable();
 
-            webix.$$('dvt:tpl:offline').hide();
+            hide_view_els(['top_tpl_offline']);
 
             // Подготовка элементов для дрона
             if( _this.drone_data.info.get('ac') === 'copter' ){
-                _this.view_els.label_mode.show();
-                _this.view_els.mode_select.hide();
-                _this.view_els.btn_guided.show();
-                _this.view_els.takeoff_btn.show();
-                _this.view_els.land_btn.show();
-                _this.view_els.rtl_btn.show();
-                //_this.view_els.btn_md_loiter.show();
-                _this.view_els.btn_cm_loiter.show();
+                hide_view_els(['mode_select']);
+                show_view_els(['label_mode','btn_guided','btn_cm_loiter','takeoff_btn','land_btn','rtl_btn']);
             }
             // Для остальных
             else {
-                _this.view_els.label_mode.hide();
-                _this.view_els.mode_select.show();
-                _this.view_els.btn_guided.hide();
-                _this.view_els.takeoff_btn.hide();
-                _this.view_els.land_btn.hide();
-                _this.view_els.rtl_btn.hide();
-                _this.view_els.btn_md_loiter.hide();
-                _this.view_els.btn_cm_loiter.hide();
+                hide_view_els(['label_mode','btn_guided','takeoff_btn','land_btn','rtl_btn','btn_cm_loiter']);
+                show_view_els(['mode_select']);
             }
 
             // Общие
-            _this.view_els.label_armed.show();
+            show_view_els(['label_armed','top_icon_statuses','top_icon_actions']);
             _this.view_els.telem_top.show({y:60, x: 50});
-            webix.$$('dvt:icon:statuses').show();
-            webix.$$('dvt:icon:actions').show();
 
             //
             // Начало отправки heartbeat. Остановка по закрытию панели управления
@@ -1173,35 +1169,13 @@ class DroneClient {
             _this.view.disable();
             _this.view.$scope.fi_popup.disable();
 
-            // Элементы управления
-            _this.view_els.label_armed.hide();
-            _this.view_els.telem_top.hide();
-            _this.view_els.arm_btn.hide();
-            _this.view_els.disarm_btn.hide();
-            _this.view_els.label_mode.hide();
-            _this.view_els.mode_select.hide();
-            _this.view_els.btn_guided.hide();
-            _this.view_els.takeoff_btn.hide();
-            _this.view_els.land_btn.hide();
-            _this.view_els.rtl_btn.hide();
-            _this.view_els.btn_cm_loiter.hide();
-
-            // Вспомогательные окна
-            _this.view_els.takeoff_popup.hide();
-
-            webix.$$('dvt:icon:info').show();
-            webix.$$('dvt:icon:statuses').show();
-            webix.$$('dvt:icon:actions').hide();
-
-
-            // Шаблон 'Drone offline'
-
-            if( webix.$$('dvt:tpl:offline') && !webix.$$('dvt:tpl:offline').isVisible() ){
-                webix.$$('dvt:tpl:offline').show();
-            }
+            // Скрыть элементы управления
+            hide_view_els(['label_armed','telem_top','arm_btn','disarm_btn','label_mode','mode_select','btn_guided','takeoff_btn','land_btn','rtl_btn','btn_cm_loiter',
+                'takeoff_popup','params_list_popup','logs_list_popup','top_icon_actions']);
+            // Показать элементы управления
+            show_view_els(['top_icon_info','top_icon_statuses','top_tpl_offline']);
 
         };
-
 
     }
 
@@ -1219,6 +1193,8 @@ class DroneClient {
     // Включение обновления вида своими данными
     view_start(view){
 
+        let time_point = helpers.now_ms();
+
         this.view = view;
         this.view_enabled = true;
 
@@ -1227,27 +1203,43 @@ class DroneClient {
         //
         //  Объекты вида
         this.view_els = {
-             horizon: view.$scope.fi_popup.queryView({localId: 'fi:horizon'})
-            ,compass: view.$scope.fi_popup.queryView({localId: 'fi:compass'})
-            ,label_armed: webix.$$('dvt:lbl:armed')
-            ,label_mode: webix.$$('dvt:lbl:mode')
-            ,telem_top: view.$scope.telemetry_popup.queryView({localId:'tpl:telem_top'}) // Шаблон с телеметрией наверху
-            ,map: view.$scope.$$('map:drone').getMap() // Объект карты Google
+            //
+            // Верхняя панель
 
+            // Кнопка Инфо
+             top_icon_info: webix.$$('dvt:icon:info')
+            // Шаблон онлайн/оффлайн
+            ,top_tpl_offline: webix.$$('dvt:tpl:offline')
+            // Кнопка списка сообщений и статусов
+            ,top_icon_statuses: webix.$$('dvt:icon:statuses')
             // Меню и шаблон режимов
             ,mode_select: webix.$$('dvt:rs:mode')
-
+            ,label_mode: webix.$$('dvt:lbl:mode')
+            // Шаблон Armed
+            ,label_armed: webix.$$('dvt:lbl:armed')
             // Кнопки ARM, DISARM
             ,arm_btn: webix.$$('dvt:btn:arm')
             ,disarm_btn: webix.$$('dvt:btn:disarm')
-
-            // Кнопки управления
+            // Кнопки управления режимами
             ,btn_guided: webix.$$('dvt:btn:md_guided')
-            ,btn_md_loiter: webix.$$('dvt:btn:md_loiter')
             ,btn_cm_loiter: webix.$$('dvt:btn:cm_loiter')
             ,takeoff_btn: webix.$$('dvt:btn:takeoff')
             ,land_btn: webix.$$('dvt:btn:land')
             ,rtl_btn: webix.$$('dvt:btn:rtl')
+            // Меню доп функция
+            ,top_icon_actions: webix.$$('dvt:icon:actions')
+
+
+
+            ,fi_popup: view.$scope.fi_popup
+            ,horizon: view.$scope.fi_popup.queryView({localId: 'fi:horizon'})
+            ,compass: view.$scope.fi_popup.queryView({localId: 'fi:compass'})
+
+
+            ,telem_top: view.$scope.telemetry_popup.queryView({localId:'tpl:telem_top'}) // Шаблон с телеметрией наверху
+            ,map: view.$scope.$$('map:drone').getMap() // Объект карты Google
+
+
 
             //
             // Всплывающие окна и их элементы
@@ -1323,7 +1315,8 @@ class DroneClient {
 
         // Джойстик
         const joystick_left = view.$scope.fi_popup.queryView({j_id: 'j_left'}),
-              joystick_right = view.$scope.fi_popup.queryView({j_id: 'j_right'});
+              joystick_right = view.$scope.fi_popup.queryView({j_id: 'j_right'}),
+              joystick_gimbal = view.$scope.fi_popup.queryView({j_id: 'j_gimb'});
 
         // Если установлен тип и доступны режимы
         if( _this.drone_data.modes && _this.drone_data.modes.length ){
@@ -1372,19 +1365,6 @@ class DroneClient {
             _this.command('md_guided', {})
                 .then( result => {
                     Message.info('Mode GUIDED');
-                })
-                .catch( err => {
-                    Message.error('Failed to set mode: ' + err);
-                });
-
-        });
-
-        // Кнопка Mode Loiter
-        _this.view_els.btn_md_loiter.attachEvent('onItemClick', () => {
-
-            _this.command('md_loiter', {})
-                .then( result => {
-                    Message.info('Mode LOITER');
                 })
                 .catch( err => {
                     Message.error('Failed to set mode: ' + err);
@@ -1893,7 +1873,7 @@ class DroneClient {
             let item = _this.view_els.logs_list_table.getItem(log_id);
             if( !item ) return;
 
-            _this.view.$scope.show('log_view?id=' + item.log_id);
+            _this.view.$scope.show('dataflash_log_view?id=' + item.log_id);
         });
         // Загрузить лог
         _this.view_els.logs_list_table.attachEvent('clickOnDL', log_id => {
@@ -1973,7 +1953,7 @@ class DroneClient {
 
         // Открыть лог
         _this.view_els.log_dl_view.attachEvent('onItemClick', () => {
-            if( _this.drone_data.latest_log_id ) _this.view.$scope.show('log_view?id=' + _this.drone_data.latest_log_id);
+            if( _this.drone_data.latest_log_id ) _this.view.$scope.show('dataflash_log_view?id=' + _this.drone_data.latest_log_id);
         });
 
         // Открыть окно с параметрами
@@ -2081,17 +2061,31 @@ class DroneClient {
             });
         });
 
+        const make_stream_url = function(stream_ind){
+            let stream_url = '';
+            stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
+            if( common_config.NIMBLE_STREAMING_SERVER ){
+                stream_url += common_config.NIMBLE_STREAMING_SERVER;
+            }
+            else {
+                stream_url += window.location.hostname;
+                stream_url += (window.location.port === '' ? '' : ':8081');
+                stream_url += '/vs/';
+            }
+
+            stream_url += _this.drone_data.params['video_stream_' + stream_ind];
+
+            return stream_url;
+
+        };
 
         // переключатель видеоканалов
         _this.view_els.video_switch.attachEvent('onChange', value => {
-            Message.info('Video #' + value);
+            if( !_this.drone_data.params['video_stream_' + value] ) return Message.info('Video stream ' + value + ' is not set');
 
-            let stream_url = '';
-            stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
-            //stream_url += window.location.hostname;
-            stream_url += '192.168.0.22';
-            stream_url += (window.location.port === '' ? '' : ':8081');
-            stream_url += '/vs/test_video_' + value;
+            let stream_url = make_stream_url(value);
+
+            console.log('Setting video stream URL 2', stream_url);
 
             _this.player.destroy();
 
@@ -2112,15 +2106,16 @@ class DroneClient {
 
         // Видео
         try {
-            // Nimble Streamer on the same domain
-            if( _this.drone_data.params.rtsp_video_url && _this.drone_data.params.rtsp_video_url.trim().length > 2 ){
 
-                let stream_url = '';
-                stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
-                //stream_url += window.location.hostname;
-                stream_url += '192.168.0.22';
-                stream_url += (window.location.port === '' ? '' : ':8081');
-                stream_url += '/vs/' + _this.drone_data.params.rtsp_video_url.trim();
+            let stream_url = null;
+
+            // Nimble Streamer
+            if( _this.drone_data.params.video_stream_1 && _this.drone_data.params.video_stream_1.trim().length > 2 ) stream_url = make_stream_url(1);
+            else if( _this.drone_data.params.video_stream_2 && _this.drone_data.params.video_stream_2.trim().length > 2 ) stream_url = make_stream_url(2);
+            else if( _this.drone_data.params.video_stream_3 && _this.drone_data.params.video_stream_3.trim().length > 2 ) stream_url = make_stream_url(3);
+
+            if( stream_url ){
+                console.log('Setting video stream URL 1', stream_url);
 
                 _this.player = window.SLDP.init({
                     container: 'video_player',
@@ -2133,7 +2128,6 @@ class DroneClient {
                     muted: true,
                     autoplay: true
                 });
-
                 /*
                 _this.player.setCallbacks({
 
@@ -2168,6 +2162,8 @@ class DroneClient {
         //
         //   Установка вида онлайн или оффлайн
         _this.drone.isOnline() ?  _this.view_online() : _this.view_offline();
+
+        console.log('Drone view setup', (helpers.now_ms()-time_point));
 
     }
 

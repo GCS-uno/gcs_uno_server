@@ -86,14 +86,10 @@ const popup_config = {
                                     ,invalidMessage: validators.drone.gcs_tcp_port.shortMessage
                                 }
 
-                                // rtsp url
-                                ,{
-                                    view: 'text'
-                                    ,label: 'Video stream'
-                                    ,name: 'rtsp_video_url'
-                                    ,placeholder: 'video_test'
-                                    ,type: 'url'
-                                }
+                                // Video streams
+                                ,{ view: 'text' ,label: 'Video stream 1' ,name: 'video_stream_1' }
+                                ,{ view: 'text' ,label: 'Video stream 2' ,name: 'video_stream_2' }
+                                ,{ view: 'text' ,label: 'Video stream 3' ,name: 'video_stream_3' }
 
                                 // joystick
                                 ,{

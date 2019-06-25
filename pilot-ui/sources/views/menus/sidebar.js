@@ -2,9 +2,13 @@ import {JetView, plugins} from "webix-jet";
 
 
 const menu_data = [
-    { id: "drones_list", icon: "mdi mdi-drone", value: "Drones" }
+	 { id: "control_tower", icon: "mdi mdi-airport", value: "Control Tower" }
+	,{ id: "drones_list", icon: "mdi mdi-drone", value: "Drones" }
+	,{ id: "charging_stations_list", icon: "mdi mdi-ev-station", value: "Charging Stations" }
     ,{ id: "flight_plans_list", icon: "mdi mdi-map-marker-distance", value: "Flight Plans" }
-	,{ id: "logs_list", icon: "mdi mdi-file-table", value: "Flight Logs" }
+	,{ id: "flight_logs_list", icon: "mdi mdi-file-document-outline", value: "Flight Logs" }
+	,{ id: "media_files_list", icon: "mdi mdi-folder-multiple-image", value: "Media Files" }
+	,{ id: "dataflash_logs_list", icon: "mdi mdi-micro-sd", value: "DataFlash Logs" }
 ];
 
 

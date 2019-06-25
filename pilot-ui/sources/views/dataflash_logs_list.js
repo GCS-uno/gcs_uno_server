@@ -76,7 +76,7 @@ export default class LogsListView extends JetView {
         //
         // Клик по строке в таблице открывает лог
         this.table_logs.attachEvent('onItemClick', (id, e, node) => {
-            this.show('log_view?id=' + id.toString());
+            this.show('dataflash_log_view?id=' + id.toString());
         });
 
         LogsCollection.List();

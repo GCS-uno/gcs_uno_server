@@ -168,10 +168,10 @@ const RPC_routes = {
                             drone.gcs_tcp_port = tcp_port;
                         }
 
-                        // RTPS url
-                        if( _.has(data, 'rtsp_video_url') ){
-                            drone.rtsp_video_url = data.rtsp_video_url.trim();
-                        }
+                        // Video streams
+                        if( _.has(data, 'video_stream_1') ) drone.video_stream_1 = data.video_stream_1.trim();
+                        if( _.has(data, 'video_stream_2') ) drone.video_stream_2 = data.video_stream_2.trim();
+                        if( _.has(data, 'video_stream_3') ) drone.video_stream_3 = data.video_stream_3.trim();
 
                         // Проверка MAV SYS ID
                         if( _.has(data, 'mav_sys_id') ){
@@ -220,18 +220,10 @@ const RPC_routes = {
                         }
 
                         // Джойстик
-                        if( _.has(data, 'joystick_enable') ){
-
-                            drone.joystick_enable = parseInt(data.joystick_enable) > 0 ? 1 : 0;
-
-                        }
+                        if( _.has(data, 'joystick_enable') ) drone.joystick_enable = parseInt(data.joystick_enable) > 0 ? 1 : 0;
 
                         // Загрузка лога после дизарма
-                        if( _.has(data, 'dl_log_on_disarm') ){
-
-                            drone.dl_log_on_disarm = parseInt(data.dl_log_on_disarm) > 0 ? 1 : 0;
-
-                        }
+                        if( _.has(data, 'dl_log_on_disarm') ) drone.dl_log_on_disarm = parseInt(data.dl_log_on_disarm) > 0 ? 1 : 0;
 
                     }
                     catch( e ){

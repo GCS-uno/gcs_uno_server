@@ -49,6 +49,7 @@ export default class DroneView extends JetView {
             // Включить джойстики
             _this.fi_popup.queryView({j_id: 'j_left'}).showJoystick();
             _this.fi_popup.queryView({j_id: 'j_right'}).showJoystick();
+            _this.fi_popup.queryView({j_id: 'j_gimb'}).showJoystick();
 
             // drone_id передается в параметре открытия вида
             const drone_id = _this.getParam("id");
@@ -452,7 +453,6 @@ const params_list_popup = {
 // Кнопки для верхней панели
 const top_controls = {
     cols: [
-        //,{ view: 'button', type: 'iconButton', icon: 'mdi mdi-settings', label: 'Setup your drone', width: 200, id: 'dvt:btn:setup', css: 'button_primary button_raised', hidden: true}
 
         // Кнопка с информацией
         { view: 'icon', id: 'dvt:icon:info', icon: 'mdi mdi-information', popup: 'drone_view_popup_info', tooltip: 'Drone info' }
@@ -475,6 +475,7 @@ const top_controls = {
             ,tooltip: 'Set flight mode'
             ,zIndex: 1500
         }
+
         // Название полетного режима для коптера
         ,{view: 'label', label: 'Mode: ', width: 150, id: 'dvt:lbl:mode', hidden: true }
         ,{ width: 20 }
@@ -494,18 +495,6 @@ const top_controls = {
             ,label: 'Guided'
             ,icon: 'mdi mdi-ship-wheel'
             ,tooltip: 'Switch to GUIDED mode'
-            ,autowidth: true
-            ,hidden: true
-        }
-
-        // Кнопка Mode Loiter
-        ,{
-            view: 'button'
-            ,type: 'iconButton'
-            ,id: 'dvt:btn:md_loiter'
-            ,label: 'MD LOIT'
-            ,icon: 'mdi mdi-alert'
-            ,tooltip: 'DANGER!! Do not click if you have no RC! For testing only'
             ,autowidth: true
             ,hidden: true
         }
@@ -558,8 +547,8 @@ const top_controls = {
 
         ,{width: 10}
 
-        // Кнопка меню команд
-        ,{view: 'icon', icon: 'mdi mdi-gamepad', popup: 'drone_view_popup_action_menu', id: 'dvt:icon:actions', hidden: true, tooltip: 'Additional controls' }
+        // Кнопка меню доп функций
+        ,{view: 'icon', icon: 'mdi mdi-dots-horizontal', popup: 'drone_view_popup_action_menu', id: 'dvt:icon:actions', hidden: true, tooltip: 'Additional controls' }
 
     ]
 };
@@ -710,63 +699,132 @@ const fi_popup = {
                         ,localId: 'switch:video_src'
                         ,value: 1
                         ,options: [
-                             { id: 1, value: 'Camera 1' }
-                            ,{ id: 2, value: 'Camera 2' }
-                            ,{ id: 3, value: 'Camera 3' }
+                             { id: 1, value: 'Cam 1' }
+                            ,{ id: 2, value: 'Cam 2' }
+                            ,{ id: 3, value: 'Cam 3' }
+                        ]
+                        ,width: 240
+                    }
+                    ,{
+                        cols: [
+                            {}
+                            ,{
+                                view: 'button'
+                                ,type: 'iconButton'
+                                ,id: 'test32434'
+                                //,label: 'Photo'
+                                ,icon: 'mdi mdi-camera'
+                                ,tooltip: 'Take photo'
+                                ,width: 40
+                            }
+                            ,{
+                                view: 'button'
+                                ,type: 'iconButton'
+                                ,id: 'test32432'
+                                //,label: 'Video'
+                                ,icon: 'mdi mdi-video'
+                                ,tooltip: 'Start video recording'
+                                ,width: 40
+                            }
                         ]
                     }
                 ]
             }
 
-            // telemetry data
-            /*
-            ,{
-                template: 'X #x1#, Y #y1#'
-                ,height: 40
-                ,localId: 'tpl:telem_test'
-            }
-            */
-
             // Полетные индикаторы
             ,{
-                height: 170
+                height: 150
                 ,css: 'transp_all'
                 ,borderless: true
                 ,cols: [
 
-                    {}
+                    {width: 10}
                     // Горизонт
                     ,{
                         view: 'fi_horizon'
                         ,localId: 'fi:horizon'
-                        ,size: 160
+                        ,size: 140
                         ,css: 'transp'
-                        ,width: 170
+                        ,width: 150
                         ,borderless: true
                     }
 
-                    ,{}
+                    ,{gravity:1}
 
                     // Компас
                     ,{
                         view: 'fi_compass'
                         ,localId: 'fi:compass'
-                        ,size: 160
+                        ,size: 140
                         ,css: 'transp'
-                        ,width: 170
+                        ,width: 150
                         ,borderless: true
                     }
-                    ,{}
+
+                    ,{gravity:1}
+
+                    // Радар
+                    ,{
+                        rows: [
+                            {
+                                view:"chart",
+                                type:"radar",
+                                width: 150,
+                                height: 120,
+                                padding: 0,
+                                css: {"padding":"10px 0"},
+                                value:"#dis#",
+                                borderless: true,
+                                preset:"area",
+                                disableItems: true,
+                                xValue: '#dir#',
+                                yValue: '#dis#',
+                                fill: 'rgba(0,209,25,1)',
+                                line: {color: '#ff0309'},
+                                xAxis:{
+                                    template: '',
+                                    lines: true,
+                                    lineColor:"#A5A5A5"
+                                },
+                                yAxis:{
+                                    lines: true
+                                    ,lineColor:"#A5A5A5"
+                                    ,template: ''
+                                    ,lineShape: 'arc'
+                                    ,bg: '#cccccc'
+                                    ,start: 1
+                                    ,end: 10
+                                    ,step: 1
+                                }
+                                ,data: [
+                                    {dir: 0, dis: 6}
+                                    ,{dir: 1, dis: 8}
+                                    ,{dir: 2, dis: 10}
+                                    ,{dir: 3, dis: 8}
+                                    ,{dir: 4, dis: 10}
+                                    ,{dir: 5, dis: 8}
+                                    ,{dir: 6, dis: 7}
+                                    ,{dir: 7, dis: 8}
+                                ]
+                            }
+                            ,{height:5}
+                        ]
+                    }
+
+                    ,{width: 10}
                 ]
             }
 
             // Джойстики
             ,{
                 cols: [
-                    {
+                    {width: 10}
+
+                    // Левый
+                    ,{
                         borderless: true
                         ,localId: 'cont:joystick1'
-                        ,height: 150
+                        ,height: 140
                         ,cols: [
                             {}
                             ,{
@@ -778,10 +836,14 @@ const fi_popup = {
                             ,{}
                         ]
                     }
+
+                    ,{gravity:1}
+
+                    // Правый
                     ,{
                         borderless: true
                         ,localId: 'cont:joystick2'
-                        ,height: 150
+                        ,height: 140
                         ,cols: [
                             {}
                             ,{
@@ -793,10 +855,30 @@ const fi_popup = {
                             ,{}
                         ]
                     }
+
+                    ,{gravity:1}
+
+                    // Подвес камеры
+                    ,{
+                        borderless: true
+                        ,localId: 'cont:joystick3'
+                        ,height: 140
+                        ,cols: [
+                            {}
+                            ,{
+                                view: 'joystick'
+                                ,css: 'transp'
+                                ,borderless: true
+                                ,j_id: 'j_gimb'
+                                ,color: 'blue'
+                            }
+                            ,{}
+                        ]
+                    }
+
+                    ,{width: 10}
                 ]
             }
-
-
 
         ]
 

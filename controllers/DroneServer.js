@@ -1833,13 +1833,13 @@ class JoystickController {
                 this.last_sent_pos_data.jry = this.pos_data.jry;
 
                 // Подготовить значения для отправки
-                let vx = this.pos_data.jry/10 || 0, // max 50/10 = 5 m/s
-                    vy = this.pos_data.jrx/10 || 0, // max 50/10 = 5 m/s
-                    vz = this.pos_data.jly/10*-1 || 0, // max 50/10 = 5 m/s // Z velocity in m/s (positive is down)
-                    yr = this.pos_data.jlx/50 || 0; // 1 rad/sec
+                let vx = parseInt(this.pos_data.jry)/10 || 0, // max 50/10 = 5 m/s
+                    vy = parseInt(this.pos_data.jrx)/10 || 0, // max 50/10 = 5 m/s
+                    vz = parseInt(this.pos_data.jly)/10*-1 || 0, // max 50/10 = 5 m/s // Z velocity in m/s (positive is down)
+                    yr = Math.round(parseInt(this.pos_data.jlx)/5)/10 || 0; // 1 rad/sec
 
-                // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
-                this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', {
+
+                let fields = {
                     time_boot_ms: helpers.now_ms()
                     ,target: this.drone.mavlink.sysid
                     ,target_component: this.drone.mavlink.compid
@@ -1856,7 +1856,11 @@ class JoystickController {
                     ,afz: null
                     ,yaw: null
                     ,yaw_rate: yr
-                });
+                };
+                // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
+                this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', fields);
+
+                console.log(JSON.stringify(fields));
 
             }
 
@@ -1929,7 +1933,7 @@ class JoystickController {
         }
 
         //
-        // Все остальные режимы и автопилоты
+        // Все автопилоты
         else {
             this.drone.mavlink.sendMessage('MANUAL_CONTROL', {
                 target: this.drone.mavlink.sysid

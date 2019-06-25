@@ -52,7 +52,7 @@ const DataFlashLog = {
                             if( parseInt(m_list['GPS'][i].Status) >= 2 ){
                                 response_data.lat = parseFloat(m_list['GPS'][i].Lat).toPrecision(7);
                                 response_data.lon = parseFloat(m_list['GPS'][i].Lng).toPrecision(7);
-                                response_data.gps_time = 315964800 + 86400*7*parseInt(m_list['GPS'][i].GWk) + parseInt(m_list['GPS'][i].GMS)*0.001 - 15; // 315964800 = 86400*(10*365 + Math.round((1980-1969)/4) + 4)
+                                response_data.gps_time = 315964800 + 86400*7*parseInt(m_list['GPS'][i].GWk) + parseInt(m_list['GPS'][i].GMS)*0.001; // 315964800 = 86400*(10*365 + Math.round((1980-1969)/4) + 4)
                                 break;
                             }
                         }

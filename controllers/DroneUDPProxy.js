@@ -63,7 +63,7 @@ class DroneUDPProxy {
                 redisSubBuf.subscribe(MAVLINK_TO_DRONE);
                 redisSubBuf.on('message', function(channel, message){
 
-                    if( channel.toString() === MAVLINK_TO_DRONE && message.length < common_config.MAVLINK_MAX_MSG_SIZE) send_to_board(message);
+                    if( channel.toString() === MAVLINK_TO_DRONE && message.length < 500) send_to_board(message);
 
                 });
 

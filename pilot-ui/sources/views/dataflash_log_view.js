@@ -25,22 +25,17 @@ export default class LogView extends JetView {
         // drone_id передается в параметре открытия вида
         const log_id = this.getParam("id");
 
-        console.log('LOG ID', log_id);
-
         // Если параметра нет или он не найден в коллекции
         // Открыть список
         if( !log_id || !LogsCollection.getItem(log_id) ){
-            this.app.show('/app/logs_list');
-            console.log('LOG NOT FOUND');
+            this.app.show('/app/dataflash_logs_list');
             return;
         }
-
-        console.log('LOG FOUND');
 
         const log_item = LogsCollection.getItem(log_id);
 
         // Сделать в заголовке ссылку на список и добавить название лога
-        this.app.getService('topTitle').update([{text: 'Logs', link: '/app/logs_list'}, {text: log_item.location}]);
+        this.app.getService('topTitle').update([{text: 'Logs', link: '/app/dataflash_logs_list'}, {text: log_item.location}]);
 
         // Top controls
         const btn_remove = webix.$$('log_view:btn:trash');
@@ -73,7 +68,7 @@ export default class LogView extends JetView {
                         LogsCollection.Remove(log_id)
                             .then(function(){Message.info('Log removed')})
                             .catch(console.log);
-                        this.show('logs_list');
+                        this.show('dataflash_logs_list');
                     }
                 }
             });
@@ -551,23 +546,23 @@ export default class LogView extends JetView {
         let modes_timeline = [];
         // Определенные цвета для режимов
         let modes_colors = {
-             0: 'rgba(255,250,32,0.3)'
-            ,3: 'rgba(9,255,93,0.3)'
-            ,4: 'rgba(255,7,164,0.3)'
-            ,5: 'rgba(10,65,255,0.3)'
-            ,6: 'rgba(71,83,96,0.3)'
-            ,9: 'rgba(98,5,255,0.3)'
+             0: 'rgba(255,250,32,0.2)'
+            ,3: 'rgba(9,255,93,0.2)'
+            ,4: 'rgba(255,7,164,0.2)'
+            ,5: 'rgba(10,65,255,0.2)'
+            ,6: 'rgba(71,83,96,0.2)'
+            ,9: 'rgba(98,5,255,0.2)'
         };
         // Подготовить набор цветов для отображения режимов
         let mode_random_colors_set = [
-            'rgba(255,250,32,0.3)'
-            ,'rgba(255,7,164,0.3)'
-            ,'rgba(98,5,255,0.3)'
-            ,'rgba(10,65,255,0.3)'
-            ,'rgba(9,255,93,0.3)'
-            ,'rgba(71,83,96,0.3)'
-            ,'rgba(255,195,16,0.3)'
-            ,'rgba(255,47,49,0.3)'
+            'rgba(255,250,32,0.2)'
+            ,'rgba(255,7,164,0.2)'
+            ,'rgba(98,5,255,0.2)'
+            ,'rgba(10,65,255,0.2)'
+            ,'rgba(9,255,93,0.2)'
+            ,'rgba(71,83,96,0.2)'
+            ,'rgba(255,195,16,0.2)'
+            ,'rgba(255,47,49,0.2)'
         ];
         let errors_timeline = [];
 

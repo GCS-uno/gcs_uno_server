@@ -10,7 +10,6 @@ const type = thinky.type
 const Drone = thinky.createModel(TABLE_NAME, {
         id: type.string()
         ,name: type.string().min(2).max(50).required().validator(validators.drone.name)
-        ,rtsp_video_url: type.string().default('')
         ,udp_port: type.number().validator(validators.drone.udp_port)
         ,gcs_tcp_port: type.number().default(common_config.GCS_TCP_PORT_MIN).validator(validators.drone.gcs_tcp_port)
 
@@ -20,8 +19,11 @@ const Drone = thinky.createModel(TABLE_NAME, {
         ,mav_gcs_cmp_id: type.number().default(0).min(0).max(255)
 
         ,joystick_enable: type.number().min(0).max(1).default(0)
-
         ,dl_log_on_disarm: type.number().min(0).max(1).default(0)
+
+        ,video_stream_1: type.string()
+        ,video_stream_2: type.string()
+        ,video_stream_3: type.string()
 
         ,createdAt: type.date().default(r.now())
     }
