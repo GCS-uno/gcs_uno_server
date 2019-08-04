@@ -141,6 +141,14 @@ const keys_prefixes = {
                 в сообщении 1 или 0 = online или offline
         */
 
+    /* */
+    ,DJI_IO_FROM_DRONE: 'ch_dji_io_from_drone_' // + DRONE_ID
+
+    /* */
+    ,DJI_IO_TO_DRONE: 'ch_dji_io_to_drone_' // + DRONE_ID
+    // message_buffer
+
+
     //
     // Browser <-> RPC routes
     ,START_DRONE_UDP: 'startDroneUDP_id_' // + DRONE_ID

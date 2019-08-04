@@ -31,7 +31,7 @@ webix.ready(() => {
 		if( resp && resp.status ){
 			if( "unauthorized" === resp.status ){
 				console.log("unauthorized GO TO LOGIN");
-				app.getService("auth").logout();
+				//app.getService("auth").logout();
 			}
 		}
 	});

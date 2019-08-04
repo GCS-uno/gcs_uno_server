@@ -1,34 +1,26 @@
-const telem1_fields = [
+const mavlink_telem1_fields = [
      'armed'
     ,'alt'
-    ,'base_mode'
-    ,'bat_c'
-    ,'bat_rem'
-    ,'bat_v'
-    ,'custom_mode'
+    ,'bat_c' // Battery current
+    ,'bat_rem' // Battery remaining %
+    ,'bat_v' // Battery voltage
     ,'dist_home'
-    //,'gps_cog'
-    //,'gps_fix'
     ,'gps_speed'
     ,'lat'
     ,'lon'
-    ,'m_stab'
-    ,'m_guid'
-    ,'m_auto'
     ,'mode'
-    //,'pos_hdg'
     ,'rc'
     ,'sats'
-    ,'sys_load'
-    ,'sys_status'
+    ,'sys_load'  // TODO реализовать в интерфейсе MAVLink: SYS_STATUS.load
+    ,'sys_status' // MAVLink: MAV_STATE(status) в текстовом виде из defs/mavlink.js
     ,'dest_point'
 ];
 
-const telem10_fields = [
+const mavlink_telem10_fields = [
      'r' //roll
     ,'p' //pitch
     ,'y' //yaw
 ];
 
 
-module.exports = {telem1_fields, telem10_fields};
+module.exports = {telem1_fields: mavlink_telem1_fields, telem10_fields: mavlink_telem10_fields};

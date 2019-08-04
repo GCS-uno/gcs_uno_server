@@ -1,3 +1,5 @@
+"use strict";
+
 /*
 
         ui-server.js
@@ -8,6 +10,7 @@
 const server_config = require('../configs/server_config')
     ,_ = require('lodash')
     ,http = require('http')
+    ,nodeUuid = require('node-uuid')
     ,express = require('express')
     ,fileUpload = require('express-fileupload')
     ,{redisClient, redisPub, redisSub, rHGetAll} = require('../utils/redis')
@@ -22,7 +25,6 @@ const server_config = require('../configs/server_config')
     // DB Models
     ,DroneModel = require('../db_models/Drone')
     ,DataFlashLogModel = require('../db_models/DataFlashLog')
-    ,nodeUuid = require('node-uuid')
     ,DataFlashLog = require('../utils/dataflash_logs')
 ; /////////
 

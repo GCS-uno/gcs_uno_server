@@ -3,7 +3,7 @@
 const _ = require('lodash')
     ,Logger = require('../utils/logger')
     ,DroneModel = require('../db_models/Drone')
-    ,DroneServerController = require('../controllers/DroneServer');
+    ,DroneServerController = require('../controllers/DroneServerController');
 
 
 
@@ -37,6 +37,7 @@ DroneModel.look()
             if( !data.old_val && data.new_val ){
                 try {
                     DroneServerController.start(data.new_val);
+                    Logger.info('DroneServer started for ' + data.new_val.id );
                 }
                 catch (err) {
                     Logger.error('Failed to start DroneServer for ' + data.new_val.id );
@@ -48,6 +49,7 @@ DroneModel.look()
             else if( data.old_val && !data.new_val ){
                 try {
                     DroneServerController.destroy(data.old_val.id);
+                    Logger.info('Drone destroyed ' + data.old_val.id );
                 }
                 catch (err) {
                     Logger.error('Failed to destroy DroneServer for ' + data.old_val.id );
@@ -59,6 +61,7 @@ DroneModel.look()
             else if( data.old_val && data.new_val ){
                 try {
                     DroneServerController.update(data.new_val);
+                    Logger.info('Drone data updated for ' + data.old_val.id );
                 }
                 catch (err) {
                     Logger.error('Failed to update DroneServer for ' + data.old_val.id );

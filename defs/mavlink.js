@@ -168,14 +168,14 @@ const FRAME_TYPES = [
 ];
 
 const MAV_STATE = [
-    'noinit'
+     'no init'
     ,'booting'
     ,'calibrating'
     ,'standby'
     ,'active'
     ,'critical'
     ,'mayday'
-    ,'powering_down'
+    ,'powering down'
     ,'terminating'
 ];
 

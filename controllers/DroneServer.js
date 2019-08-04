@@ -18,7 +18,6 @@ const common_config = require('../configs/common_config')
      ,{telem1_fields, telem10_fields} = require('./../defs/io_telemetry_fields')
      ,turf_helpers = require('@turf/helpers')
      ,turf_dist = require('@turf/distance').default
-     ,DroneServersList = {}
      ,DataFlashLogModel = require('../db_models/DataFlashLog')
      ,DataFlashLog = require('../utils/dataflash_logs');
 
@@ -789,11 +788,11 @@ class HeartbeatController {
 
             //
             // Общие характеристики полетного режима
-            drone.telem1.set('m_stab', ((16 & fields.base_mode) ? 1 : 0));
-            drone.telem1.set('m_guid', ((8 & fields.base_mode) ? 1 : 0));
-            drone.telem1.set('m_auto', ((4 & fields.base_mode) ? 1 : 0));
-            drone.telem1.set('base_mode', fields.base_mode);
-            drone.telem1.set('custom_mode', fields.custom_mode);
+            //drone.telem1.set('m_stab', ((16 & fields.base_mode) ? 1 : 0));
+            //drone.telem1.set('m_guid', ((8 & fields.base_mode) ? 1 : 0));
+            //drone.telem1.set('m_auto', ((4 & fields.base_mode) ? 1 : 0));
+            //drone.telem1.set('base_mode', fields.base_mode);
+            //drone.telem1.set('custom_mode', fields.custom_mode);
 
             // Определить полетный режим из списка
             // Если включен CUSTOM MODE
@@ -1058,11 +1057,11 @@ class Telem1Controller {
                 // ArduRover
                 if( 3 === drone.data.autopilot && 'rover' === drone.info.get('ac') && 'custom' === drone.data.modes_type ){
                     // RTL mode (возврат домой)
-                    if( this.get('custom_mode') === 11 ){
+                    if( this.get('mode') === 11 ){
                         this.set('dest_point', [drone.info.get('h_pos_lat'), drone.info.get('h_pos_lon'), 'h']);
                     }
                     // AUTO mode (движение по точкам миссии)
-                    else if( this.get('custom_mode') === 10 && mission_current > 0 ){
+                    else if( this.get('mode') === 10 && mission_current > 0 ){
                         this.set('dest_point', drone.mission_download.getWP(mission_current));
                     }
                 }
@@ -1070,11 +1069,11 @@ class Telem1Controller {
                 // ArduCopter
                 else if( 3 === drone.data.autopilot && 'copter' === drone.info.get('ac') && 'custom' === drone.data.modes_type ){
                     // RTL mode (возврат домой)
-                    if( this.get('custom_mode') === 6 ){
+                    if( this.get('mode') === 6 ){
                         this.set('dest_point', [drone.info.get('h_pos_lat'), drone.info.get('h_pos_lon'), 'h']);
                     }
                     // AUTO mode (движение по точкам миссии)
-                    else if( this.get('custom_mode') === 3 && mission_current > 0 ){
+                    else if( this.get('mode') === 3 && mission_current > 0 ){
                         this.set('dest_point', drone.mission_download.getWP(mission_current));
                     }
                 }
@@ -1103,11 +1102,11 @@ class Telem1Controller {
                 }
 
                 // RTL mode (возврат домой)
-                if( this.get('custom_mode') === 84148224 ){
+                if( this.get('mode') === 84148224 ){
                     this.set('dest_point', [drone.info.get('h_pos_lat'), drone.info.get('h_pos_lon'), 'h']);
                 }
                 // Mission mode (движение по точкам миссии)
-                else if( this.get('custom_mode') === 67371008 ){
+                else if( this.get('mode') === 67371008 ){
                     if( mission_current >= 0 ) this.set('dest_point', drone.mission_download.getWP(mission_current));
                 }
                 // В любом другом случае берем координаты точки назначения из этого сообщения
@@ -1607,7 +1606,7 @@ class CommandController {
             // Полет на точку
             else if( 'nav2p' === data.command ) {
                 // ArduRover in Guided mode
-                if( 3 === this.drone.data.autopilot && 'rover' === this.drone.info.get('ac') && 'custom' === this.drone.data.modes_type && this.drone.telem1.get('custom_mode') === 15 ){
+                if( 3 === this.drone.data.autopilot && 'rover' === this.drone.info.get('ac') && 'custom' === this.drone.data.modes_type && this.drone.telem1.get('mode') === 15 ){
 
                     this.drone.mavlink.sendMessage('MISSION_ITEM', {
                         target_system: this.drone.mavlink.sysid
@@ -1632,7 +1631,7 @@ class CommandController {
                 }
 
                 // ArduCopter in Guided mode
-                else if( 3 === this.drone.data.autopilot && 'copter' === this.drone.info.get('ac') && 'custom' === this.drone.data.modes_type && this.drone.telem1.get('custom_mode') === 4 ){
+                else if( 3 === this.drone.data.autopilot && 'copter' === this.drone.info.get('ac') && 'custom' === this.drone.data.modes_type && this.drone.telem1.get('mode') === 4 ){
 
                     this.drone.mavlink.sendMessage('MISSION_ITEM', {
                         target_system: this.drone.mavlink.sysid
@@ -2871,42 +2870,4 @@ class DroneServer {
 }
 
 
-const DroneServerController = function(){
-    return {
-        start: function(drone){ // Instance of DroneModel или {} с параметрами
-            try {
-                DroneServersList[drone.id] = new DroneServer(drone);
-            }
-            catch(e){
-                Logger.error('Error starting DroneServer instance');
-                Logger.error(e);
-            }
-        }
-
-        ,update: function(drone_data){
-            try {
-                if( _.has(DroneServersList, drone_data.id) && DroneServersList[drone_data.id] ) DroneServersList[drone_data.id].update(drone_data);
-            }
-            catch(e){
-                Logger.error('Error destroying DroneServer instance');
-                Logger.error(e);
-            }
-        }
-
-        ,destroy: function(drone_id){
-            try {
-                if( _.has(DroneServersList, drone_id) ){
-                    DroneServersList[drone_id].destroy();
-                    setTimeout(function(){DroneServersList[drone_id] = null;},5000);
-                }
-            }
-            catch(e){
-                Logger.error('Error destroying DroneServer instance');
-                Logger.error(e);
-            }
-        }
-    };
-}();
-
-
-module.exports = DroneServerController;
+module.exports = DroneServer;

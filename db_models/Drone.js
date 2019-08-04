@@ -8,15 +8,20 @@ const type = thinky.type
 
 
 const Drone = thinky.createModel(TABLE_NAME, {
-        id: type.string()
+         id: type.string()
+        ,type: type.string().enum(["dji","mavlink"]).default("mavlink")
         ,name: type.string().min(2).max(50).required().validator(validators.drone.name)
-        ,udp_port: type.number().validator(validators.drone.udp_port)
+
+        ,udp_port: type.number().default(common_config.DRONE_UDP_PORT_MIN).validator(validators.drone.udp_port)
         ,gcs_tcp_port: type.number().default(common_config.GCS_TCP_PORT_MIN).validator(validators.drone.gcs_tcp_port)
 
         ,mav_sys_id: type.number().default(1).min(1).max(255)
         ,mav_cmp_id: type.number().default(1).min(1).max(255)
         ,mav_gcs_sys_id: type.number().default(255).min(1).max(255)
         ,mav_gcs_cmp_id: type.number().default(0).min(0).max(255)
+
+        ,dji_model: type.string()
+        ,dji_fc_serial: type.string()
 
         ,joystick_enable: type.number().min(0).max(1).default(0)
         ,dl_log_on_disarm: type.number().min(0).max(1).default(0)
@@ -59,3 +64,5 @@ module.exports = Drone;
 
 
 Drone.ensureIndex("createdAt");
+Drone.ensureIndex("dji_model");
+Drone.ensureIndex("dji_fc_serial");
