@@ -86,6 +86,25 @@ const popup_config = {
                                     ,invalidMessage: validators.drone.gcs_tcp_port.shortMessage
                                 }
 
+                                // DJI model
+                                ,{
+                                    view: 'text'
+                                    ,label: 'DJI Model'
+                                    ,name: 'dji_model'
+                                    ,readonly: true
+                                    ,disabled: true
+                                }
+
+                                // DJI SN
+                                ,{
+                                    view: 'text'
+                                    ,label: 'FC Serial #'
+                                    ,name: 'dji_fc_serial'
+                                    ,readonly: true
+                                    ,disabled: true
+                                }
+
+
                                 // Video streams
                                 ,{ view: 'text' ,label: 'Video stream 1' ,name: 'video_stream_1' }
                                 ,{ view: 'text' ,label: 'Video stream 2' ,name: 'video_stream_2' }
@@ -102,7 +121,8 @@ const popup_config = {
 
                                 // Download log on disarm dl_log_on_disarm
                                 ,{
-                                    rows: [
+                                    localId: "dl_log_on_disarm_row"
+                                    ,rows: [
                                         //{ template: 'Joystick', type:"section" }
                                         { view: 'checkbox', name: 'dl_log_on_disarm', labelRight: 'Download latest log on disarm', value: 0, labelWidth: 0 }
                                     ]
@@ -111,7 +131,8 @@ const popup_config = {
                                 //*
                                 // mavlink
                                 ,{
-                                    rows: [
+                                    localId: "mavlink_section"
+                                    ,rows: [
                                         { template: 'MAVLink', type:"section" }
                                         ,{
                                             cols: [

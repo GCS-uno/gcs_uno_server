@@ -30,7 +30,7 @@ const DroneServerController = function(){
     return {
         start: function(drone){ // Instance of DroneModel или {} с параметрами
             try {
-                if( drone.type === "dji" ) DroneServersList[drone.id] = new DroneServerDJI(drone);
+                if( drone.type && drone.type === "dji" ) DroneServersList[drone.id] = new DroneServerDJI(drone);
                 else DroneServersList[drone.id] = new DroneServer(drone);
             }
             catch(e){

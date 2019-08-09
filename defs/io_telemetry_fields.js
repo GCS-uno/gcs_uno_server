@@ -22,5 +22,39 @@ const mavlink_telem10_fields = [
     ,'y' //yaw
 ];
 
+const dji_telem1_fields = [
+    'protV',
+    'stateUpdateTS',
+    'armed',
+    'isFlying',
+    'flightTime',
+    'mode',
+    'alt',
+    'lon',
+    'lat',
+    'h_speed',
+    'v_speed',
+    'sats',
+    'gps_qual',
+    'ultra_sonic_alt',
+    'bat_voltage',
+    'bat_current',
+    'bat_remains_percent',
+    'bat_temp',
+    'mode_name'
+];
 
-module.exports = {telem1_fields: mavlink_telem1_fields, telem10_fields: mavlink_telem10_fields};
+const dji_telem10_fields = [
+     'protV'
+    ,'roll'
+    ,'pitch'
+    ,'yaw'
+];
+
+
+module.exports = {
+    telem1_fields: mavlink_telem1_fields,
+    telem10_fields: mavlink_telem10_fields,
+    dji_telem1_fields: dji_telem1_fields,
+    dji_telem10_fields: dji_telem10_fields
+};

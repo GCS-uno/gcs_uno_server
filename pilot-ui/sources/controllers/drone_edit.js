@@ -57,6 +57,25 @@ export default {
         // загрузить данные в форму
         DronesCollection.Get(drone_id)
             .then( values => {
+                if( "dji" === values.type ){
+                    form.elements['udp_port'].hide();
+                    form.elements['gcs_tcp_port'].hide();
+                    form.queryView({localId: 'dl_log_on_disarm_row'}).hide();
+                    form.queryView({localId: 'mavlink_section'}).hide();
+
+                    form.elements['dji_model'].show();
+                    form.elements['dji_fc_serial'].show();
+                }
+                else if( "mavlink" === values.type ){
+                    form.elements['dji_model'].hide();
+                    form.elements['dji_fc_serial'].hide();
+
+                    form.elements['udp_port'].show();
+                    form.elements['gcs_tcp_port'].show();
+                    form.queryView({localId: 'dl_log_on_disarm_row'}).show();
+                    form.queryView({localId: 'mavlink_section'}).show();
+                }
+
                 form.setValues(values);
                 form.enable();
                 save_button.enable();

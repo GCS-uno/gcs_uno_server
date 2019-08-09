@@ -48,8 +48,7 @@ export default class TopToolbarView extends JetView {
 const view_config = {
     view: "toolbar"
     ,padding: 5
-    ,type: 'clean'
-    ,css: 'bg_panel'
+    //,css: 'webix_dark'
     ,id: 'top_toolbar'
     ,borderless: true
     ,elements: [

@@ -10,6 +10,7 @@ export default class AppView extends JetView {
 		return {
             borderless: true
             ,padding: 0
+            //,css: "webix_dark"
             ,rows:[
                 top_toolbar
                 ,{

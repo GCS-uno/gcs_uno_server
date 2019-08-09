@@ -59,6 +59,16 @@ const popup_config = {
                         ,invalidMessage: validators.drone.name.shortMessage
                         ,bottomPadding: 18 // for validation message
                     }
+                    ,{
+                        view: 'richselect'
+                        ,name: "type"
+                        ,label: "Type"
+                        ,value: "dji"
+                        ,options: [
+                            { id: "dji", value: "DJI" }
+                            ,{ id: "mavlink", value: "MAVLink" }
+                        ]
+                    }
                 ]
                 ,rules: {
                     name: function(value){

@@ -59,6 +59,9 @@ const keys_prefixes = {
                 tcp_op_s: статус DroneUDPProxy для дрона (0,1)
                 tcp_op_c: информация о подключеннии
 
+                model: DJI model
+                sn: DJI FC serial number
+
          */
 
     //

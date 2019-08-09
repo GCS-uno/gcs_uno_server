@@ -37,18 +37,33 @@ const RPC_routes = {
         // Проверка названия дрона
         if( _.isObject(values) && _.has(values, 'name') ){
 
-            // Random UDP port
-            values.udp_port = _.random(common_config.DRONE_UDP_PORT_MIN, common_config.DRONE_UDP_PORT_MAX);
-            values.gcs_tcp_port = _.random(common_config.GCS_TCP_PORT_MIN, common_config.GCS_TCP_PORT_MAX);
+            let new_drone_data = {};
+
+            console.log(values);
+
+            if( values.type === "dji" ) new_drone_data.type = "dji";
+            else if( values.type === "mavlink" ) new_drone_data.type = "mavlink";
+            else return reject("Invalid type");
 
             // Проверка названия дрона
-            if( !validators.drone.name.func(values.name) ){
-                reject(validators.drone.name.longMessage);
-                return;
+            if( !validators.drone.name.func(values.name) ) return reject(validators.drone.name.longMessage);
+
+            new_drone_data.name = values.name.trim();
+
+
+            if( new_drone_data.type === "mavlink" ){
+                // Random UDP port
+                new_drone_data.udp_port = _.random(common_config.DRONE_UDP_PORT_MIN, common_config.DRONE_UDP_PORT_MAX);
+                new_drone_data.gcs_tcp_port = _.random(common_config.GCS_TCP_PORT_MIN, common_config.GCS_TCP_PORT_MAX);
+            }
+
+            if( new_drone_data.type === "dji" ){
+                new_drone_data.dji_model = "new";
+                new_drone_data.dji_fc_serial = "new";
             }
 
             // Create new drone
-            const new_drone = new DroneModel(values);
+            const new_drone = new DroneModel(new_drone_data);
 
             try {
                 // Validate data
@@ -145,27 +160,80 @@ const RPC_routes = {
                             drone.name = data.name.trim();
                         }
 
-                        // Drone UDP port
-                        if( _.has(data, 'udp_port') ){
+                        // Если это mavlink дрон
+                        if( drone.type === "mavlink" ){
+                            // Drone UDP port
+                            if( _.has(data, 'udp_port') ){
 
-                            let udp_port = parseInt(data.udp_port.trim());
-                            if( !validators.drone.udp_port.func(udp_port) ){
-                                reject(validators.drone.udp_port.longMessage);
-                                return;
+                                let udp_port = parseInt(data.udp_port.trim());
+                                if( !validators.drone.udp_port.func(udp_port) ){
+                                    reject(validators.drone.udp_port.longMessage);
+                                    return;
+                                }
+
+                                drone.udp_port = udp_port;
                             }
 
-                            drone.udp_port = udp_port;
-                        }
+                            // GCS TCP port
+                            if( _.has(data, 'gcs_tcp_port') ){
+                                let tcp_port = parseInt(data.gcs_tcp_port.trim());
+                                if( !validators.drone.gcs_tcp_port.func(tcp_port) ){
+                                    reject(validators.drone.gcs_tcp_port.longMessage);
+                                    return;
+                                }
 
-                        // GCS TCP port
-                        if( _.has(data, 'gcs_tcp_port') ){
-                            let tcp_port = parseInt(data.gcs_tcp_port.trim());
-                            if( !validators.drone.gcs_tcp_port.func(tcp_port) ){
-                                reject(validators.drone.gcs_tcp_port.longMessage);
-                                return;
+                                drone.gcs_tcp_port = tcp_port;
                             }
 
-                            drone.gcs_tcp_port = tcp_port;
+                            // Проверка MAV SYS ID
+                            if( _.has(data, 'mav_sys_id') ){
+                                let mav_sys_id = parseInt(data.mav_sys_id);
+                                if( mav_sys_id < 1 || mav_sys_id > 254 ){
+                                    reject('Board MAVLink system ID must be between 1 and 254');
+                                    return;
+                                }
+
+                                drone.mav_sys_id = mav_sys_id;
+                            }
+
+                            // Проверка MAV COMPONENT ID
+                            if( _.has(data, 'mav_cmp_id') ){
+                                let mav_cmp_id = parseInt(data.mav_cmp_id);
+
+                                if( mav_cmp_id < 1 || mav_cmp_id > 254 ){
+                                    reject('Board MAVLink component ID must be between 1 and 254');
+                                    return;
+                                }
+
+                                drone.mav_cmp_id = mav_cmp_id;
+                            }
+
+                            // Проверка MAV GCS SYS ID
+                            if( _.has(data, 'mav_gcs_sys_id') ){
+                                let mav_gcs_sys_id = parseInt(data.mav_gcs_sys_id);
+                                if( mav_gcs_sys_id < 100 || mav_gcs_sys_id > 255 ){
+                                    reject('GCS MAVLink system ID must be between 100 and 255');
+                                    return;
+                                }
+
+                                drone.mav_gcs_sys_id = mav_gcs_sys_id;
+                            }
+
+                            // Проверка MAV GCS COMPONENT ID
+                            if( _.has(data, 'mav_gcs_cmp_id') ){
+                                let mav_gcs_cmp_id = parseInt(data.mav_gcs_cmp_id);
+
+                                if( mav_gcs_cmp_id < 0 || mav_gcs_cmp_id > 200 ){
+                                    reject('GCS MAVLink component ID must be between 0 and 200');
+                                    return;
+                                }
+
+                                drone.mav_gcs_cmp_id = mav_gcs_cmp_id;
+                            }
+
+                            // Загрузка лога после дизарма
+                            if( _.has(data, 'dl_log_on_disarm') ) drone.dl_log_on_disarm = parseInt(data.dl_log_on_disarm) > 0 ? 1 : 0;
+
                         }
 
                         // Video streams
@@ -173,57 +241,8 @@ const RPC_routes = {
                         if( _.has(data, 'video_stream_2') ) drone.video_stream_2 = data.video_stream_2.trim();
                         if( _.has(data, 'video_stream_3') ) drone.video_stream_3 = data.video_stream_3.trim();
 
-                        // Проверка MAV SYS ID
-                        if( _.has(data, 'mav_sys_id') ){
-                            let mav_sys_id = parseInt(data.mav_sys_id);
-                            if( mav_sys_id < 1 || mav_sys_id > 254 ){
-                                reject('Board MAVLink system ID must be between 1 and 254');
-                                return;
-                            }
-
-                            drone.mav_sys_id = mav_sys_id;
-                        }
-
-                        // Проверка MAV COMPONENT ID
-                        if( _.has(data, 'mav_cmp_id') ){
-                            let mav_cmp_id = parseInt(data.mav_cmp_id);
-
-                            if( mav_cmp_id < 1 || mav_cmp_id > 254 ){
-                                reject('Board MAVLink component ID must be between 1 and 254');
-                                return;
-                            }
-
-                            drone.mav_cmp_id = mav_cmp_id;
-                        }
-
-                        // Проверка MAV GCS SYS ID
-                        if( _.has(data, 'mav_gcs_sys_id') ){
-                            let mav_gcs_sys_id = parseInt(data.mav_gcs_sys_id);
-                            if( mav_gcs_sys_id < 100 || mav_gcs_sys_id > 255 ){
-                                reject('GCS MAVLink system ID must be between 100 and 255');
-                                return;
-                            }
-
-                            drone.mav_gcs_sys_id = mav_gcs_sys_id;
-                        }
-
-                        // Проверка MAV GCS COMPONENT ID
-                        if( _.has(data, 'mav_gcs_cmp_id') ){
-                            let mav_gcs_cmp_id = parseInt(data.mav_gcs_cmp_id);
-
-                            if( mav_gcs_cmp_id < 0 || mav_gcs_cmp_id > 200 ){
-                                reject('GCS MAVLink component ID must be between 0 and 200');
-                                return;
-                            }
-
-                            drone.mav_gcs_cmp_id = mav_gcs_cmp_id;
-                        }
-
                         // Джойстик
                         if( _.has(data, 'joystick_enable') ) drone.joystick_enable = parseInt(data.joystick_enable) > 0 ? 1 : 0;
-
-                        // Загрузка лога после дизарма
-                        if( _.has(data, 'dl_log_on_disarm') ) drone.dl_log_on_disarm = parseInt(data.dl_log_on_disarm) > 0 ? 1 : 0;
 
                     }
                     catch( e ){

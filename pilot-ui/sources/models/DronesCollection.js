@@ -1,4 +1,5 @@
 import Drone from './DroneClient';
+import DJIDrone from './DJIDroneClient';
 import Message from '../plugins/Message';
 
 const DronesCollection = new webix.DataCollection({
@@ -7,7 +8,14 @@ const DronesCollection = new webix.DataCollection({
         // After creating new
         'onAfterAdd': function(id){
 
-            if( !this.Drones[id] ) this.Drones[id] = new Drone(id);
+            if( !this.Drones[id] ){
+                let drone = this.getItem(id);
+                if( drone ){
+                    if( drone.type === "dji" ) this.Drones[id] = new DJIDrone(id);
+                    else this.Drones[id] = new Drone(id);
+                }
+
+            }
 
         }
 
@@ -18,7 +26,10 @@ const DronesCollection = new webix.DataCollection({
             if ( this.data.each ){
                 this.data.each( drone => {
 
-                    if( !this.Drones[drone.id] ) this.Drones[drone.id] = new Drone(drone.id);
+                    if( !this.Drones[drone.id] ){
+                        if( drone.type === "dji" ) this.Drones[drone.id] = new DJIDrone(drone.id);
+                        else this.Drones[drone.id] = new Drone(drone.id);
+                    }
 
                 });
             }

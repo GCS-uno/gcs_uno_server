@@ -15,10 +15,11 @@ const menu_data = [
 export default class SidebarView extends JetView{
 	config(){
 		return {
-		    id: "sidebar1"
+		     id: "sidebar1"
 			,view: "sidebar"
 			,collapsed: true
             ,select: true
+			//,css: "webix_dark"
 			,on:{
 				onBeforeSelect:function(id){
 				    if(this.getItem(id).$count){

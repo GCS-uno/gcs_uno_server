@@ -244,3 +244,76 @@
     padding: 15px 15px 25px 15px;
 }
 
+
+/**
+    Webix message dark look
+ */
+.webix_dark_message div{
+    background-color: rgba(52, 52, 52, 0.8);
+    border: 0;
+    color: #fff;
+}
+
+.webix_dark_message {
+    background-color: transparent;
+    border: 1px solid rgba(52, 52, 52, 0.9);
+    box-shadow: 0 0 15px #fff;
+}
+
+.webix_message_area{
+    top:50px !important;
+}
+
+
+
+/**
+    Telemetry widgets
+ */
+.telem_widget {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    margin-right: 20px;
+    margin-top: 5px;
+    border: 0;
+}
+
+.t_elem {
+    border-radius: 15px;
+    padding: 10px;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    border: 0;
+}
+
+.t_elem_plain {
+    background-color: rgba(52, 52, 52, 0.7) !important;
+    color: #fff;
+}
+
+.t_elem_warn {
+    background-color: rgba(255, 208, 18, 0.7) !important;
+    color: #fff;
+}
+
+.t_elem_danger {
+    background-color: rgba(255, 21, 0, 0.7) !important;
+    color: #fff;
+}
+
+.t_elem_clickable {
+    cursor: pointer;
+}
+
+.t_elem .value {
+    font-size: 22px;
+    font-weight: bold;
+    margin-right: 5px;
+    margin-left: 5px;
+}
+
+.t_elem .label {
+    font-size: 18px;
+    color: #cccccc;
+}
+

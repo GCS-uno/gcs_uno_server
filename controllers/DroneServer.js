@@ -19,7 +19,8 @@ const common_config = require('../configs/common_config')
      ,turf_helpers = require('@turf/helpers')
      ,turf_dist = require('@turf/distance').default
      ,DataFlashLogModel = require('../db_models/DataFlashLog')
-     ,DataFlashLog = require('../utils/dataflash_logs');
+     ,DataFlashLog = require('../utils/dataflash_logs')
+     ,DroneRPCController = require("./DroneRPCController");
 
 const io = require('socket.io-emitter')({ host: server_config.REDIS_HOST, port: server_config.REDIS_PORT });
 
@@ -502,10 +503,10 @@ function MAVLinkController(drone){
 
     //
     // Подписка на канал Redis с чистым MAVlink
-    drone.redis.SubBuf.subscribe(drone.data_keys.MAVLINK_FROM_DRONE);
+    drone.redis.SubBuf.subscribe(drone.data_channels.MAVLINK_FROM_DRONE);
     // Сюда приходят MAVLink сообщения от дрона (0xFD, 0xFE)
     drone.redis.SubBuf.on('message', function(channel, message){
-        if( drone.data_keys.MAVLINK_FROM_DRONE !== channel.toString() ) return;
+        if( drone.data_channels.MAVLINK_FROM_DRONE !== channel.toString() ) return;
 
         // распарсить сообщение, далее вызываются mavlink.messageHandler, mavlink.errorHandler
         setTimeout(() => mavlink.parse(message), 0); // далее сообщения в событиях
@@ -523,7 +524,7 @@ function MAVLinkController(drone){
         // Если дрон не онлайн, тогда ничего не делаем
         if( err || !drone.info.get('online') || !_.isBuffer(message_buffer) || !message_buffer.length ) return;
 
-        redisPubBuf.publish(drone.data_keys.MAVLINK_TO_DRONE, message_buffer);
+        redisPubBuf.publish(drone.data_channels.MAVLINK_TO_DRONE, message_buffer);
         redisPubBuf.publish(RK.MAVLINK_TO_DRONE_MONITOR(), message_buffer);
     };
 
@@ -543,7 +544,7 @@ function MAVLinkController(drone){
 
     // При удалении и остановке дрона
     drone.events.on('destroy', () => {
-        drone.redis.SubBuf.unsubscribe(drone.data_keys.MAVLINK_FROM_DRONE);
+        drone.redis.SubBuf.unsubscribe(drone.data_channels.MAVLINK_FROM_DRONE);
     });
 
 
@@ -584,7 +585,7 @@ class InfoController {
 
         // Вызывается для сохранения времени последнего сообщения в редис в заторможенном режиме
         this.save_last_msg_time = _.throttle( () => {
-            redisClient.hset(this.drone.data_keys.DRONE_INFO_KEY, 'last_message_time', this.data.last_message_time);
+            redisClient.hset(this.drone.data_channels.DRONE_INFO_KEY, 'last_message_time', this.data.last_message_time);
         }, 1000);
 
         // Загрузка данных из редиса
@@ -630,12 +631,12 @@ class InfoController {
         });
 
         // Сообщения с изменениями в инфо дрона
-        drone.redis.Sub.subscribe(this.drone.data_keys.DRONE_INFO_CHANNEL);
+        drone.redis.Sub.subscribe(this.drone.data_channels.DRONE_INFO_CHANNEL);
         // Обработка входящих сообщений
         drone.redis.Sub.on('message', (channel, data) => {
 
             // Обновление текущей информации
-            if( drone.data_keys.DRONE_INFO_CHANNEL === channel ){
+            if( drone.data_channels.DRONE_INFO_CHANNEL === channel ){
                 this.set(JSON.parse(data), false); // false = НЕ СОХРАНЯТЬ, тк сюда публикуются уже сохраненные данные
             }
 
@@ -647,7 +648,7 @@ class InfoController {
 
         // При удалении и остановке дрона
         drone.events.on('destroy', () => {
-            drone.redis.Sub.unsubscribe(this.drone.data_keys.DRONE_INFO_CHANNEL);
+            drone.redis.Sub.unsubscribe(this.drone.data_channels.DRONE_INFO_CHANNEL);
         });
 
     }
@@ -657,7 +658,7 @@ class InfoController {
         const _this = this;
 
         return new Promise(function(resolve, reject){
-            rHGetAll(_this.drone.data_keys.DRONE_INFO_KEY)
+            rHGetAll(_this.drone.data_channels.DRONE_INFO_KEY)
                 .then( res => {
                     _.mapKeys(res, (value, key) => {
                         if( isNaN(parseFloat(value)) ) _this.data[key] = value;
@@ -670,7 +671,7 @@ class InfoController {
                 })
                 .catch( err => {
                     Logger.error(err);
-                    reject('Redis get error key ' + _this.drone.data_keys.DRONE_INFO_KEY)
+                    reject('Redis get error key ' + _this.drone.data_channels.DRONE_INFO_KEY)
                 } );
 
         });
@@ -695,7 +696,7 @@ class InfoController {
             if( !_.has(this.data, key) || this.data[key] !== value ){
                 this.data[key] = value;
                 changed_fields[key] = value;
-                if( save ) redisClient.hset(this.drone.data_keys.DRONE_INFO_KEY, key, value.toString());
+                if( save ) redisClient.hset(this.drone.data_channels.DRONE_INFO_KEY, key, value.toString());
             }
         });
 
@@ -847,7 +848,8 @@ class HeartbeatController {
             // Дрон оффлайн
             else {
                 heartbeat_info.online = 0;
-                heartbeat_info.downtime = (now - drone.info.get('last_message_time'));
+                let lmt = drone.info.get('last_message_time');
+                heartbeat_info.downtime = lmt === 0 ? 0 : (now - lmt);
             }
             //
             // отправить данные в io
@@ -1178,29 +1180,6 @@ class Telem10Controller {
 }
 
 //
-// RPC контроллер
-class RPCController {
-    constructor(drone) {
-
-        this.methods = {};
-
-        drone.RPC.on(RK.DRONE_RPC(drone.id), (data, channel, response_callback) => {
-            if( _.has(this.methods, data.method) ) this.methods[data.method](data.data, response_callback);
-            else {
-                Logger.error('Wrong droneRPC method: ' + data.method);
-                response_callback('wrong method');
-            }
-        });
-    }
-
-    setMethod(method, handler){
-        if( _.has(this.methods, method) ) Logger.error('RPC method overrite: ' + method);
-
-        this.methods[method] = handler;
-    }
-}
-
-//
 // Контроллер команд
 class CommandController {
     constructor(drone){
@@ -1208,11 +1187,11 @@ class CommandController {
 
         //
         // Подписка на канал redis откуда приходят команды для дрона
-        drone.redis.Sub.subscribe(drone.data_keys.DRONE_UI_COMMANDS);
+        drone.redis.Sub.subscribe(drone.data_channels.DRONE_UI_COMMANDS);
         // Как только приходит команда, проверяем этот ли канал, и отправляем на преобразование и исполнение
         drone.redis.Sub.on('message', (channel, data) => {
             // Команда с предварительной обработкой из браузера
-            if( drone.data_keys.DRONE_UI_COMMANDS === channel ){
+            if( drone.data_channels.DRONE_UI_COMMANDS === channel ){
                 const com_data = JSON.parse(data);
                 if( !com_data || !_.has(com_data, 'command') ) return;
                 // Выполняем команду
@@ -1283,7 +1262,7 @@ class CommandController {
 
         // При удалении и остановке дрона
         drone.events.on('destroy', () => {
-            drone.redis.Sub.unsubscribe(drone.data_keys.DRONE_UI_COMMANDS);
+            drone.redis.Sub.unsubscribe(drone.data_channels.DRONE_UI_COMMANDS);
         });
 
     }
@@ -2714,88 +2693,92 @@ class DroneServer {
                 dl_log_on_disarm
          */
 
-        let start_time = helpers.now_ms();
+        try {
 
-        const _this = this;
+            let start_time = helpers.now_ms();
 
-        this.redis = {
-             Sub: redisClient.duplicate()
-            ,Pub: redisClient.duplicate()
-            ,SubBuf: redisClientBuf.duplicate()
-        };
+            const _this = this;
 
-        //
-        /* Event emitter
-            infoChanged (changed_fields) => {}     нужен обработчик для отправки изменений в браузер
-            infoLoaded (all_fields) => {}
-            isOnline (downtime) => {} время доунтайм в секундах
-            isOffline (uptime) => {} время аптайм в секундах
-            paramsChanged () => {}
-            destroy () => {}
-            armed () => {}
-            disarmed () => {}
-            mavlinkMessage
-         */
-        this.events = new EventEmitter();
+            this.redis = {
+                Sub: redisClient.duplicate()
+                , Pub: redisClient.duplicate()
+                , SubBuf: redisClientBuf.duplicate()
+            };
 
-        this.data_keys = {
-             // Переменные и каналы redis и IO
-             MAVLINK_FROM_DRONE: RK.MAVLINK_FROM_DRONE(params.id) // MAVLink с борта
-            ,MAVLINK_TO_DRONE: RK.MAVLINK_TO_DRONE(params.id) // MAVLink на борт
-            ,DRONE_UI_COMMANDS: RK.DRONE_UI_COMMANDS(params.id) // Канал с командами из браузера
-            ,DRONE_INFO_CHANNEL: RK.DRONE_INFO_CHANNEL(params.id) // Канал с информацией
-            ,DRONE_INFO_KEY: RK.DRONE_INFO_KEY(params.id) // Переменая с информацией о дроне
-            ,DRONE_IO_ROOM: IK.DRONE_IO_ROOM(params.id) // Канал в io для исходящей телеметрии дрона
-        };
+            //
+            /* Event emitter
+                infoChanged (changed_fields) => {}     нужен обработчик для отправки изменений в браузер
+                infoLoaded (all_fields) => {}
+                isOnline (downtime) => {} время доунтайм в секундах
+                isOffline (uptime) => {} время аптайм в секундах
+                paramsChanged () => {}
+                destroy () => {}
+                armed () => {}
+                disarmed () => {}
+                mavlinkMessage
+             */
+            this.events = new EventEmitter();
 
-        this.id = params.id;
-        this.data = {
-            // Тип автопилота
-            autopilot: null // 3=Ardupilot, 12=PX4
-            // Тип рамы
-            ,type: null
-            // список полетных режимов
-            ,modes: null
-            // по какому типу определять режим base или custom
-            ,modes_type: null
-            ,db_params: params // Параметры из БД
-            // Счетчики сообщений
-            ,message_counters: {
-                total: 0
-                ,decoded: 0
-                ,missed: 0
-                ,errors: 0
-                ,create_errors: 0
-            }
-        };
+            this.data_channels = {
+                // Переменные и каналы redis и IO
+                 MAVLINK_FROM_DRONE: RK.MAVLINK_FROM_DRONE(params.id) // MAVLink с борта
+                , MAVLINK_TO_DRONE: RK.MAVLINK_TO_DRONE(params.id) // MAVLink на борт
+                , DRONE_UI_COMMANDS: RK.DRONE_UI_COMMANDS(params.id) // Канал с командами из браузера
+                , DRONE_INFO_CHANNEL: RK.DRONE_INFO_CHANNEL(params.id) // Канал с информацией
+                , DRONE_INFO_KEY: RK.DRONE_INFO_KEY(params.id) // Переменая с информацией о дроне
+                , DRONE_IO_ROOM: IK.DRONE_IO_ROOM(params.id) // Канал в io для исходящей телеметрии дрона
+            };
 
-        this.RPC = new NodeRedisRpc({ emitter: this.redis.Pub, receiver: this.redis.Sub });
-        this.RPC2 = new RPCController(this);
+            this.id = params.id;
+            this.data = {
+                // Тип автопилота
+                autopilot: null // 3=Ardupilot, 12=PX4
+                // Тип рамы
+                , type: null
+                // список полетных режимов
+                , modes: null
+                // по какому типу определять режим base или custom
+                , modes_type: null
+                , db_params: params // Параметры из БД
+                // Счетчики сообщений
+                , message_counters: {
+                    total: 0
+                    , decoded: 0
+                    , missed: 0
+                    , errors: 0
+                    , create_errors: 0
+                }
+            };
+
+            // FIXME перевести все на RPC2
+            this.RPC = new NodeRedisRpc({emitter: this.redis.Pub, receiver: this.redis.Sub});
 
 
-        // Инициализация MAVLink
-        this.mavlink = new MAVLinkController(this);
+            // Инициализация MAVLink
+            this.mavlink = new MAVLinkController(this);
 
-        // Отправка сообщений в web приложение
-        this.send2io = function(event, data){
-            io.to(_this.data_keys.DRONE_IO_ROOM).emit(event + '_' + _this.id, data)
-        };
+            // Отправка сообщений в web приложение
+            this.send2io = function (event, data) {
+                io.to(_this.data_channels.DRONE_IO_ROOM).emit(event + '_' + _this.id, data)
+            };
 
-        // Контроллеры
-        this.info = new InfoController(this);
-        this.heartbeat = new HeartbeatController(this);
-        this.joystick = new JoystickController(this);
-        this.commands = new CommandController(this);
-        this.telem1 = new Telem1Controller(this);
-        this.telem10 = new Telem10Controller(this);
-        this.mission_download = new MissionDownloadController(this);
-        this.mission_upload = new MissionUploadController(this);
-        this.flight_path = new FlightPathController(this);
-        this.log_download = new LogDownloadController(this);
-        this.params = new ParamsController(this);
+            // Контроллеры
+            this.info = new InfoController(this);
+            this.heartbeat = new HeartbeatController(this);
+            this.RPC2 = new DroneRPCController(this);
+            this.joystick = new JoystickController(this);
+            this.commands = new CommandController(this);
+            this.telem1 = new Telem1Controller(this);
+            this.telem10 = new Telem10Controller(this);
+            this.mission_download = new MissionDownloadController(this);
+            this.mission_upload = new MissionUploadController(this);
+            this.flight_path = new FlightPathController(this);
+            this.log_download = new LogDownloadController(this);
+            this.params = new ParamsController(this);
 
-        Logger.info(`DroneServer started (${helpers.now_ms()-start_time}ms) for ${this.data.db_params.name}`);
+            Logger.info(`DroneServer started (${helpers.now_ms() - start_time}ms) for ${this.data.db_params.name}`);
 
+        } catch(e){console.log(e);}
     }
 
     //

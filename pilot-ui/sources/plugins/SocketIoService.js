@@ -18,6 +18,9 @@ socket.emit(event, data) => возвращает True если есть соед
 
 import io from 'socket.io-client';
 import Message from './Message';
+import Cookies from "js-cookie";
+
+
 
 export default function SocketIoService(app){
 
@@ -34,8 +37,17 @@ export default function SocketIoService(app){
     const service = {
 
         //
-        connect(options){
-            if( !options ) options = {};
+        connect(options={}){
+            let wcid = Cookies.get('wcid') || "";
+
+            options.transportOptions = {
+                polling: {
+                    extraHeaders: {
+                        'x-io-client': 'webapp',
+                        'wcid': wcid
+                    }
+                }
+            };
 
             socket = io(options);
 

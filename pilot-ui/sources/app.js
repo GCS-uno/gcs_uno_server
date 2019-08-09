@@ -6,6 +6,7 @@ import io_service from './plugins/SocketIoService';
 
 // Joystick
 import nipplejs from "nipplejs";
+import {EventEmitter} from "events";
 
 //
 // On webix loaded and ready
@@ -160,7 +161,7 @@ webix.protoUI({
 	},
 	$init: function(config){
 		let img_dir = "static/fi/";
-		this.$view.innerHTML = "<div class=\"instrument attitude\"><div class=\"roll box\"><img src=\"" + img_dir + "horizon_back.svg\" class=\"box\" alt=\"\" /><div class=\"pitch box\"><img src=\"" + img_dir + "horizon_ball.svg\" class=\"box\" alt=\"\" /></div><img src=\"" + img_dir + "horizon_circle.svg\" class=\"box\" alt=\"\" /></div><div class=\"mechanics box\"><img src=\"" + img_dir + "horizon_mechanics.svg\" class=\"box\" alt=\"\" /><img src=\"" + img_dir + "fi_circle.svg\" class=\"box\" alt=\"\" /></div></div>";
+		this.$view.innerHTML = '<div class="instrument attitude"><div class="roll box"><img src="' + img_dir + 'horizon_back.svg" class="box" alt="" /><div class="pitch box"><img src="' + img_dir + 'horizon_ball.svg" class="box" alt="" /></div><img src="' + img_dir + 'horizon_circle.svg" class="box" alt="" /></div><div class="mechanics box"><img src="' + img_dir + 'horizon_mechanics.svg" class="box" alt="" /><img src="' + img_dir + 'fi_circle.svg" class="box" alt="" /></div></div>';
 
 		const _this = this;
 
@@ -191,12 +192,27 @@ webix.protoUI({
 		}
 	}
 
-	/*
-    ,$getSize: function(x, y){}
-    ,$setSize:function(x, y){
-        // this.$view.childNodes[i].style.width = ''
-    }
-    */
+	,connectDataRecord: function(dataRecord){
+		let roll_el = this.$view.querySelectorAll("div.instrument.attitude div.roll")[0];
+		let pitch_el = this.$view.querySelectorAll("div.instrument.attitude div.roll div.pitch")[0];
+
+
+		if( !roll_el || !pitch_el ){
+			console.log('Horizon: Error connecting to datarecord');
+			return;
+		}
+
+		dataRecord.attachEvent('onChange', rec => {
+			let roll = parseInt(rec.roll);
+			if( isNaN(roll) ) roll = 0;
+			let pitch = parseInt(rec.pitch);
+			if( isNaN(pitch) ) pitch = 0;
+
+			roll_el.style.transform = "rotate(" + -roll + "deg)";
+			pitch_el.style.top = pitch*0.7 + "%";
+		});
+	}
+
 }, webix.ui.view);
 
 
@@ -210,7 +226,7 @@ webix.protoUI({
 	},
 	$init: function(config){
 		let img_dir = "static/fi/";
-		this.$view.innerHTML = "<div class=\"instrument heading\"><div class=\"heading box\"><img src=\"" + img_dir + "heading_yaw.svg\" class=\"box\" alt=\"\" /></div><div class=\"mechanics box\"><img src=\"" + img_dir + "heading_mechanics.svg\" class=\"box\" alt=\"\" /><img src=\"" + img_dir + "fi_circle.svg\" class=\"box\" alt=\"\" /></div></div>";
+		this.$view.innerHTML = '<div class="instrument heading"><div class="heading box"><img src="' + img_dir + 'heading_yaw.svg" class="box" alt="" /></div><div class="mechanics box"><img src="' + img_dir + 'heading_mechanics.svg" class="box" alt="" /><img src="' + img_dir + 'fi_circle.svg" class="box" alt="" /></div></div>';
 
 		const _this = this;
 
@@ -232,6 +248,22 @@ webix.protoUI({
 
 	}
 
+	,connectDataRecord: function(dataRecord){
+		let el = this.$view.querySelectorAll("div.instrument.heading div.heading")[0];
+
+		if( !el ){
+			console.log('Compass: Error connecting to datarecord');
+			return;
+		}
+		dataRecord.attachEvent('onChange', rec => {
+			if( el ){
+				let heading = parseInt(rec.yaw);
+				if( isNaN(heading) ) heading = 0;
+				el.style.transform = "rotate(" + -heading + "deg)";
+			}
+		});
+	}
+
 	/*
     ,$getSize: function(x, y){}
     ,$setSize:function(x, y){
@@ -240,6 +272,114 @@ webix.protoUI({
     */
 }, webix.ui.view);
 
+
+// Виджет телеметрии
+webix.protoUI({
+	name: "telem_widget" // the name of a new component
+	,defaults:{
+		width: 100,
+		height: 54
+		//,on:{'onItemClick' : function(){}} //attached events
+	},
+	$init: function(config){
+		this.init_config = config;
+		this.$view.className += " telem_widget";
+		this.current_icon = config.icon || "close";
+		this.$view.innerHTML =  '<div class="t_elem t_elem_plain" webix_tooltip="' + (config.tooltip || "")  + '">' +
+			'<span class="webix_icon mdi mdi-' + this.current_icon + '"></span>' +
+			'<span class="value">' +
+			"--" +
+			'</span>' +
+			'<span class="label">' +
+			(config.label || "") +
+			'</span>' +
+			'</div>';
+
+		const _this = this;
+
+		this.$ready.push(function(){
+			let idiv = _this.$view.querySelectorAll("div.t_elem")[0];
+			if( idiv ){
+				if( config.width  ) idiv.style.width = config.width-20 + "px";
+				//idiv.style.height = config.size + "px";
+
+				webix.TooltipControl.addTooltip(_this.$view);
+			}
+		});
+	}
+
+	,setValue: function(value){
+		let el = this.$view.querySelectorAll("div.t_elem span.value")[0];
+
+		if( el ){
+			el.innerHTML = value + "";
+		}
+
+	}
+
+	// normal, warn, danger
+	,setState: function(state='normal'){ // warn, danger
+
+		let idiv = this.$view.querySelectorAll("div.t_elem")[0];
+		if( !idiv ) return;
+
+		if( 'warn' === state ){
+			idiv.classList.add('t_elem_warn');
+			idiv.classList.remove('t_elem_plain', 't_elem_danger');
+		}
+		else if( 'danger' === state ){
+			idiv.classList.add('t_elem_danger');
+			idiv.classList.remove('t_elem_plain', 't_elem_warn');
+		}
+		else {
+			idiv.classList.add('t_elem_plain');
+			idiv.classList.remove('t_elem_danger', 't_elem_warn');
+		}
+
+	}
+
+	,setIcon: function(icon){
+		let icon_el = this.$view.querySelectorAll("span.webix_icon")[0];
+		if( !icon_el ) return;
+
+		icon_el.classList.remove("mdi-" + this.current_icon);
+		icon_el.classList.add("mdi-" + icon);
+		this.current_icon = icon;
+	}
+
+	,connectDataRecord: function(dataRecord){
+		let el = this.$view.querySelectorAll("div.t_elem span.value")[0];
+
+		if( !el ){
+			console.log('Error connecting to datarecord');
+			return;
+		}
+		dataRecord.attachEvent('onChange', rec => {
+			let value = rec[this.init_config.data_field];
+			if( value === null || value === undefined ) value = '--';
+			el.innerHTML = value + '';
+		});
+	}
+
+}, webix.ui.view);
+
+
+window.SLDPH = function(){
+
+	let event_controller = new EventEmitter();
+
+	return {
+		on: function(event, handler){
+			return event_controller.on(event, handler);
+		}
+		,emit: function(event, data=null){
+			return event_controller.emit(event, data);
+		}
+		,reset: function(){
+			event_controller.removeAllListeners();
+		}
+	};
+}();
 
 
 //
