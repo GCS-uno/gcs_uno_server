@@ -343,15 +343,26 @@ const telemetry_popup = {
         width: 550
         ,borderless: true
         ,css: 'transp'
-        ,cols: [
+        ,cols: [ // crosshairs-gps
             {
+                view: 'telem_widget'
+                ,localId: 'tw:mapCenter'
+                ,icon: 'crosshairs-gps'
+                ,label: false
+                ,value: false
+                ,clickable: true
+                ,state: "active"
+                ,tooltip: 'Center map'
+                ,width: 40
+            }
+            ,{
                 view: 'telem_widget'
                 ,localId: 'tw:alt'
                 ,icon: 'arrow-expand-down'
                 ,label: 'm'
                 ,data_field: 'alt'
                 ,tooltip: 'Altitude'
-                ,width: 120
+                ,width: 100
             }
             ,{
                 view: 'telem_widget'
@@ -360,7 +371,7 @@ const telemetry_popup = {
                 ,label: 'kph'
                 ,data_field: 'h_speed'
                 ,tooltip: 'Ground speed'
-                ,width: 120
+                ,width: 100
             }
             ,{
                 view: 'telem_widget'
@@ -369,7 +380,7 @@ const telemetry_popup = {
                 ,label: ''
                 ,data_field: 'sats'
                 ,tooltip: 'Satellites visible'
-                ,width: 80
+                ,width: 60
             }
             ,{
                 view: 'telem_widget'
@@ -378,7 +389,7 @@ const telemetry_popup = {
                 ,label: '%'
                 ,data_field: 'bat_remains_percent'
                 ,tooltip: 'Remaining battery'
-                ,width: 100
+                ,width: 75
             }
         ]
     }

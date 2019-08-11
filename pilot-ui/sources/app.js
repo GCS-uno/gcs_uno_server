@@ -285,15 +285,17 @@ webix.protoUI({
 		this.init_config = config;
 		this.$view.className += " telem_widget";
 		this.current_icon = config.icon || "close";
-		this.$view.innerHTML =  '<div class="t_elem t_elem_plain" webix_tooltip="' + (config.tooltip || "")  + '">' +
-			'<span class="webix_icon mdi mdi-' + this.current_icon + '"></span>' +
-			'<span class="value">' +
-			"--" +
-			'</span>' +
-			'<span class="label">' +
-			(config.label || "") +
-			'</span>' +
-			'</div>';
+		this.state = "normal";
+
+		let inner_html = '';
+		inner_html += `<div class="t_elem t_elem_plain" webix_tooltip="${(config.tooltip || "")}">`;
+		inner_html += `<span class="webix_icon mdi mdi-${this.current_icon}"></span>`;
+		if( config.value !== false ) inner_html += `<span class="value">--</span>`;
+		if( config.label !== false ) inner_html += `<span class="label">${(config.label || "")}</span>`;
+
+		inner_html += '</div>';
+
+		this.$view.innerHTML = inner_html;
 
 		const _this = this;
 
@@ -301,7 +303,15 @@ webix.protoUI({
 			let idiv = _this.$view.querySelectorAll("div.t_elem")[0];
 			if( idiv ){
 				if( config.width  ) idiv.style.width = config.width-20 + "px";
-				//idiv.style.height = config.size + "px";
+				if( config.clickable === true ){
+					idiv.classList.add('t_elem_clickable');
+
+					idiv.addEventListener("click", () => _this.callEvent('onItemClick') );
+				}
+
+				if( config.state ){
+					_this.setState(config.state);
+				}
 
 				webix.TooltipControl.addTooltip(_this.$view);
 			}
@@ -317,23 +327,33 @@ webix.protoUI({
 
 	}
 
+	,getState: function(){
+		return this.state;
+	}
+
 	// normal, warn, danger
 	,setState: function(state='normal'){ // warn, danger
+
+		this.state = state;
 
 		let idiv = this.$view.querySelectorAll("div.t_elem")[0];
 		if( !idiv ) return;
 
 		if( 'warn' === state ){
 			idiv.classList.add('t_elem_warn');
-			idiv.classList.remove('t_elem_plain', 't_elem_danger');
+			idiv.classList.remove('t_elem_plain', 't_elem_danger', 't_elem_active');
 		}
 		else if( 'danger' === state ){
 			idiv.classList.add('t_elem_danger');
-			idiv.classList.remove('t_elem_plain', 't_elem_warn');
+			idiv.classList.remove('t_elem_plain', 't_elem_warn', 't_elem_active');
+		}
+		else if( 'active' === state ){
+			idiv.classList.add('t_elem_active');
+			idiv.classList.remove('t_elem_plain', 't_elem_warn','t_elem_danger');
 		}
 		else {
 			idiv.classList.add('t_elem_plain');
-			idiv.classList.remove('t_elem_danger', 't_elem_warn');
+			idiv.classList.remove('t_elem_danger', 't_elem_warn', 't_elem_active');
 		}
 
 	}
@@ -361,7 +381,7 @@ webix.protoUI({
 		});
 	}
 
-}, webix.ui.view);
+}, webix.ui.view, webix.EventSystem );
 
 
 window.SLDPH = function(){

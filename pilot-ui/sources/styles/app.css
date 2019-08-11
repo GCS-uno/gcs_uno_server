@@ -301,19 +301,25 @@
     color: #fff;
 }
 
+.t_elem_active {
+    background-color: rgba(52, 52, 52, 0.9) !important;
+    color: #81d9ff;
+}
+
 .t_elem_clickable {
     cursor: pointer;
 }
 
 .t_elem .value {
-    font-size: 22px;
+    font-size: 16px;
     font-weight: bold;
     margin-right: 5px;
     margin-left: 5px;
+    overflow: hidden;
 }
 
 .t_elem .label {
-    font-size: 18px;
+    font-size: 14px;
     color: #cccccc;
 }
 

@@ -1018,44 +1018,106 @@ class DJIDroneClient {
             // Показать элементы управления
             show_view_els(['top_icon_info','top_icon_statuses','top_tpl_offline','top_icon_actions']);
 
+            // FIXME удалить
+            _this.view_els.telem_top.show({y:60, x: 50});
+            //
+
         };
 
+        let playerInitTimeout = null;
         //
         // Инициализация видеоплеера
         this.initVideoPlayer = () => {
+            if( playerInitTimeout ){
+                clearTimeout(playerInitTimeout);
+                playerInitTimeout = null;
+            }
+
             if( this.player ) this.player.destroy();
 
-            if( !this.videoURL ) return;
+            if( !this.videoURL || this.videoURL.length < 10 ) return;
 
-            try {
-                this.player = window.SLDP.init({
-                    container: 'video_player',
-                    stream_url: this.videoURL,
-                    width: 500,
-                    height: 285,
-                    buffering: 0,
-                    latency_tolerance: 0, //50,
-                    key_frame_alignment: true,
-                    adaptive_bitrate: false,
-                    muted: true,
-                    autoplay: true,
-                    splash_screen: 'static/white_noise.gif',
-                    reconnects: 10
-                });
-
-                window.SLDPH.reset();
-                window.SLDPH.on("showNotPlaying", () => {
-                    setTimeout( () => {
-                        this.initVideoPlayer();
-                    }, 10000);
-                });
-
-                console.log("init Player with " + this.videoURL);
-            }
-            catch(e){
-                console.log(e);
+            if( this.player && this.player.destroy ){
+                this.player.destroy();
+                this.player = null;
             }
 
+            console.log("Video URL " + this.videoURL);
+
+            // Wowza Player
+            if( this.videoURL.includes("wowza.com/") ){
+                try {
+                    this.player = WowzaPlayer.create("video_player",
+                        {
+                            license: window.WowzaPlayerLicense,
+                            sourceURL: this.videoURL,
+                            title:"",
+                            description:"",
+                            autoPlay: true,
+                            mute: true,
+                            volume: 75,
+                            bufferPlayDuration: 10
+                        }
+                    );
+
+                    // Wowza Player Events
+                    this.player.onLoad( () => {
+                        console.log("Wowza Player loaded");
+                    } );
+
+                    this.player.onError( err => {
+                        console.log("Wowza Player error", err);
+                        if( !playerInitTimeout ) setTimeout(() => {this.initVideoPlayer()}, 3000);
+                    } );
+
+                    this.player.onPlaybackFailure( err => {
+                        console.log("Wowza Player failure", err);
+                        if( !playerInitTimeout ) setTimeout(() => {this.initVideoPlayer()}, 3000);
+                    } );
+
+                    this.player.onStateChanged( state => {
+                        console.log("Wowza Player state changed", state);
+                    } );
+                }
+                catch (e){
+                    console.log(e);
+                }
+
+            }
+
+            // Nimble Player
+            else {
+                try {
+                    this.player = window.SLDP.init({
+                        container: 'video_player',
+                        stream_url: this.videoURL,
+                        width: 500,
+                        height: 285,
+                        buffering: 0,
+                        latency_tolerance: 0, //50,
+                        key_frame_alignment: true,
+                        adaptive_bitrate: false,
+                        muted: true,
+                        autoplay: true,
+                        splash_screen: 'static/white_noise.gif',
+                        reconnects: 10
+                    });
+
+                    window.SLDPH.reset();
+                    window.SLDPH.on("showNotPlaying", () => {
+                        setTimeout( () => {
+                            this.initVideoPlayer();
+                        }, 10000);
+                    });
+
+                    console.log("init Player with " + this.videoURL);
+                }
+                catch(e){
+                    console.log(e);
+                }
+            }
+
+            playerInitTimeout = null;
         };
 
 
@@ -1121,6 +1183,7 @@ class DJIDroneClient {
             , compass: view.$scope.fi_popup.queryView({localId: 'fi:compass'})
 
             , telem_top: view.$scope.telemetry_popup // Шаблон с телеметрией наверху
+            , tw_map_center: view.$scope.telemetry_popup.queryView({localId: 'tw:mapCenter'})
             , tw_alt: view.$scope.telemetry_popup.queryView({localId: 'tw:alt'})
             , tw_speed: view.$scope.telemetry_popup.queryView({localId: 'tw:speed'})
             , tw_sats: view.$scope.telemetry_popup.queryView({localId: 'tw:sats'})
@@ -1152,6 +1215,10 @@ class DJIDroneClient {
 
         // Обработка кликов на карте
         this.mapClickListener = this.view_els.map.addListener('click', this.mapClickHandler);
+
+        // Перемещение карты отключает некоторые функции
+        this.view_els.map.addListener('dragstart', ()=>{});
+        this.view_els.map.addListener('dragend', ()=>{});
 
         // Список статусов
         const statuses_list = view.$scope.statuses_popup.queryView({localId: 'list:statuses'});
@@ -1336,43 +1403,51 @@ class DJIDroneClient {
 
         });
 
+        // Кнопка центрирования на карте
+        _this.view_els.tw_map_center.attachEvent('onItemClick', () => {
+
+            if( "active" === _this.view_els.tw_map_center.getState() ){
+                _this.view_els.tw_map_center.setState("normal");
+                //Message.info("Map center click Norm");
+                //_this.view_els.map.setHeading(0);
+            }
+            else {
+                _this.view_els.tw_map_center.setState("active");
+                //Message.info("Map center click Active");
+
+                let bounds = _this.view_els.map.getBounds();
+                if( bounds ){
+                    let top = bounds.getNorthEast().lat(),
+                        right = bounds.getNorthEast().lng(),
+                        bottom = bounds.getSouthWest().lat(),
+                        left = bounds.getSouthWest().lng();
+
+                    //_this.view_els.map.setHeading(45);
+                    // console.log(top, bottom, left, right);
+                    // map.panTo({lat, lng})
+                }
+            }
+
+        });
+
         // Джойстик
         joystick_left.setController( _this.drone.joystick.set_left );
         joystick_right.setController( _this.drone.joystick.set_right );
-
-        // Сборка URLа для видеоплеера
-        const make_stream_url = function(stream_ind){
-            let stream_url = '';
-            stream_url += ('https:' === window.location.protocol ? 'wss://' : 'ws://' );
-            if( common_config.NIMBLE_STREAMING_SERVER ){
-                stream_url += common_config.NIMBLE_STREAMING_SERVER;
-            }
-            else {
-                stream_url += window.location.hostname;
-                stream_url += (window.location.port === '' ? '' : ':8081');
-            }
-
-            stream_url += '/' + common_config.NIMBLE_STREAMING_APP + '/';
-            stream_url += _this.drone_data.params['video_stream_' + stream_ind];
-
-            return stream_url;
-
-        };
 
         // переключатель видеоканалов
         _this.view_els.video_switch.attachEvent('onChange', value => {
             if( !_this.drone_data.params['video_stream_' + value] ) return Message.info('Video stream ' + value + ' is not set');
 
-            _this.videoURL = make_stream_url(value);
+            _this.videoURL = _this.drone_data.params['video_stream_' + value];
             _this.initVideoPlayer();
 
         });
 
 
         // Видео плеер
-        if( _this.drone_data.params.video_stream_1 && _this.drone_data.params.video_stream_1.trim().length > 2 ) _this.videoURL = make_stream_url(1);
-        else if( _this.drone_data.params.video_stream_2 && _this.drone_data.params.video_stream_2.trim().length > 2 ) _this.videoURL = make_stream_url(2);
-        else if( _this.drone_data.params.video_stream_3 && _this.drone_data.params.video_stream_3.trim().length > 2 ) _this.videoURL = make_stream_url(3);
+        if( _this.drone_data.params.video_stream_1 && _this.drone_data.params.video_stream_1.trim().length > 10 ) _this.videoURL = _this.drone_data.params.video_stream_1.trim();
+        else if( _this.drone_data.params.video_stream_2 && _this.drone_data.params.video_stream_2.trim().length > 10 ) _this.videoURL = _this.drone_data.params.video_stream_2.trim();
+        else if( _this.drone_data.params.video_stream_3 && _this.drone_data.params.video_stream_3.trim().length > 10 ) _this.videoURL = _this.drone_data.params.video_stream_3.trim();
 
         if( _this.videoURL ) _this.initVideoPlayer();
 
