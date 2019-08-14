@@ -77,7 +77,7 @@ class DroneUDPProxy {
 
                     _this.save_udp_drone_status(1, `Running on port ${_this.port_id}. No data in`);
 
-                    resolve('Running');
+                    resolve('started');
                 });
 
                 // Сервер не запустился
@@ -146,7 +146,7 @@ class DroneUDPProxy {
                 _this.udp_server.close(() => {
                     Logger.info('UDP Proxy stopped at port ' + _this.port_id + ', drone ' + _this.drone_id);
                     _this.destroy();
-                    resolve('OK');
+                    resolve('stopped');
                 });
             }
             catch(e){
@@ -180,18 +180,12 @@ const DroneUDPProxyController = function(){
             return new Promise(function(resolve, reject){
                 try {
 
-                    if( port_id < common_config.DRONE_UDP_PORT_MIN || port_id > common_config.DRONE_UDP_PORT_MAX ){
-                        return reject('Invalid UDP port ' + port_id);
-                    }
-                    if( !drone_id ){
-                        return reject('No drone id');
-                    }
+                    if( !drone_id ) return reject('No drone id');
+
+                    if( port_id < common_config.DRONE_UDP_PORT_MIN || port_id > common_config.DRONE_UDP_PORT_MAX ) return reject('Invalid UDP port ' + port_id);
 
                     // Если сервер уже запущен, то возвращаем resolve
-                    if( _.has(proxy_by_id, drone_id) ){
-                        return resolve('running');
-                    }
-
+                    if( _.has(proxy_by_id, drone_id) ) return resolve('running');
 
                     // Если запрашиваемый порт не занят, запускаем на нем сервер
                     if( !_.has(proxy_by_port, port_id) ){
@@ -229,13 +223,10 @@ const DroneUDPProxyController = function(){
 
             return new Promise(function(resolve, reject){
 
-                if( drone_id && _.has(proxy_by_id, drone_id) ){
-                    proxy_by_id[drone_id].stop().then(resolve).catch(reject);
-                }
-                else if( port_id && _.has(proxy_by_port, port_id) ){
-                    proxy_by_port[port_id].stop().then(resolve).catch(reject);
-                }
+                if( drone_id && _.has(proxy_by_id, drone_id) ) proxy_by_id[drone_id].stop().then(resolve).catch(reject);
+                else if( port_id && _.has(proxy_by_port, port_id) ) proxy_by_port[port_id].stop().then(resolve).catch(reject);
                 else resolve('stopped');
+
             });
 
         }

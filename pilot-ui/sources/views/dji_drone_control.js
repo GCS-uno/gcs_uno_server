@@ -87,6 +87,29 @@ export default class DJIDroneView extends JetView {
 }
 
 
+// Параметры карты
+const map_options = {
+    fullscreenControl: false
+    ,panControl: false
+    ,rotateControl: false
+    ,streetViewControl: false
+    ,scaleControl: false
+    ,zoomControlOptions: {
+        position: google.maps.ControlPosition.LEFT_BOTTOM
+    }
+    ,mapTypeControlOptions: {
+        position: google.maps.ControlPosition.BOTTOM_LEFT
+    }
+};
+const map_config = {
+    view:"google-map"
+    ,localId: "map:drone"
+    ,zoom: 10
+    ,mapType: 'SATELLITE'
+    ,center:[ 55, 37 ]
+    ,zIndex: 1
+};
+
 // Меню с кнопками управления
 const action_menu_popup = {
     view: 'popup'
@@ -216,7 +239,6 @@ const takeoff_popup = {
     }
 };
 
-//
 // Кнопки для верхней панели
 const top_controls = {
     cols: [
@@ -308,30 +330,6 @@ const top_controls = {
     ]
 };
 
-
-// Параметры карты
-const map_options = {
-    fullscreenControl: false
-    ,panControl: false
-    ,rotateControl: false
-    ,streetViewControl: false
-    ,scaleControl: false
-    ,zoomControlOptions: {
-        position: google.maps.ControlPosition.LEFT_BOTTOM
-    }
-    ,mapTypeControlOptions: {
-        position: google.maps.ControlPosition.BOTTOM_LEFT
-    }
-};
-const map_config = {
-    view:"google-map"
-    ,localId: "map:drone"
-    ,zoom: 10
-    ,mapType: 'SATELLITE'
-    ,center:[ 55, 37 ]
-    ,zIndex: 1
-};
-
 // Панель с телеметрией сверху карты
 const telemetry_popup = {
     view: 'window'
@@ -343,7 +341,7 @@ const telemetry_popup = {
         width: 550
         ,borderless: true
         ,css: 'transp'
-        ,cols: [ // crosshairs-gps
+        ,cols: [
             {
                 view: 'telem_widget'
                 ,localId: 'tw:mapCenter'
@@ -352,7 +350,7 @@ const telemetry_popup = {
                 ,value: false
                 ,clickable: true
                 ,state: "active"
-                ,tooltip: 'Center map'
+                ,tooltip: 'Center drone on map'
                 ,width: 40
             }
             ,{
@@ -360,7 +358,6 @@ const telemetry_popup = {
                 ,localId: 'tw:alt'
                 ,icon: 'arrow-expand-down'
                 ,label: 'm'
-                ,data_field: 'alt'
                 ,tooltip: 'Altitude'
                 ,width: 100
             }
@@ -369,7 +366,6 @@ const telemetry_popup = {
                 ,localId: 'tw:speed'
                 ,icon: 'speedometer'
                 ,label: 'kph'
-                ,data_field: 'h_speed'
                 ,tooltip: 'Ground speed'
                 ,width: 100
             }
@@ -377,19 +373,17 @@ const telemetry_popup = {
                 view: 'telem_widget'
                 ,localId: 'tw:sats'
                 ,icon: 'satellite-variant'
-                ,label: ''
-                ,data_field: 'sats'
+                ,label: false
                 ,tooltip: 'Satellites visible'
-                ,width: 60
+                ,width: 65
             }
             ,{
                 view: 'telem_widget'
                 ,localId: 'tw:bat_r'
                 ,icon: 'battery'
                 ,label: '%'
-                ,data_field: 'bat_remains_percent'
                 ,tooltip: 'Remaining battery'
-                ,width: 75
+                ,width: 80
             }
         ]
     }
@@ -399,7 +393,7 @@ const telemetry_popup = {
 const fi_popup = {
     view: 'window'
     ,id: 'drone_view_popup_fi'
-    ,css: 'transp'
+    ,css: 'transp' // highZ
     ,head: false
     ,borderless: true
     //,disabled: true
@@ -410,7 +404,7 @@ const fi_popup = {
         ,rows: [
 
             // video screen
-            { css: "webix_dark", borderless: true, padding: 0, template: '<div id="video_player" style="width:500px; height:282px;padding:0;margin:0;background-color:#000"></div>', height: 292 }
+            { borderless: true, padding: 0, template: '<div id="video_player" style="width:500px; height:282px;padding:0;margin:0;background-color:#000"></div>', height: 292 }
 
 
             // Переключатели источника видео
@@ -606,7 +600,6 @@ const fi_popup = {
 
     }
 };
-
 
 // Основной вид
 const view_config = {

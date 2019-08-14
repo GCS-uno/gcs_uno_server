@@ -306,47 +306,6 @@ const RPC_routes = {
 
 
     //
-    //     Запросы для DroneServer
-    //
-    //
-    // Start Drone UDP
-    droneStartUDP: function(data, resolve, reject){
-        if( !data || !data.drone_id ) return reject('no data');
-
-        RPC.req(RK.START_DRONE_UDP(data.drone_id), {})
-            .then( resolve )
-            .catch( reject );
-    },
-
-    //
-    // Stop Drone UDP
-    droneStopUDP: function(data, resolve, reject){
-        if( !data || !data.drone_id ) return reject('no data');
-
-        RPC.req(RK.STOP_DRONE_UDP(data.drone_id), {})
-            .then( resolve )
-            .catch( reject );
-    },
-
-    //
-    // Start GCS TCP
-    droneStartGCSTCP: function(data, resolve, reject){
-        if( !data || !data.drone_id ) return reject('no data');
-
-        RPC.req(RK.START_GCS_TCP(data.drone_id), {})
-            .then( resolve )
-            .catch( reject );
-    },
-
-    //
-    // Stop GCS TCP
-    droneStopGCSTCP: function(data, resolve, reject){
-        RPC.req(RK.STOP_GCS_TCP(data.drone_id), {})
-            .then( resolve )
-            .catch( reject );
-    },
-
-    //
     // Drone RPC
     droneRPC: function(data, resolve, reject){
         if( !_.has(data, 'drone_id') || !_.has(data, 'method') ) return reject('Invalid request');
@@ -356,6 +315,7 @@ const RPC_routes = {
             .then( resolve )
             .catch( reject );
     },
+
 
 
     //

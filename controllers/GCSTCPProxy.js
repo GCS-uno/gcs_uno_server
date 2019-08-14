@@ -196,7 +196,7 @@ class GCSTCPProxy {
                 // Если клиент подключен, то отключаем его
                 if( _this.client ) _this.client.destroy();
                 // Останавливаем сервер. События остановки выполняются в обработчике выше on_close
-                _this.tcp_server.close( () => resolve('closed') );
+                _this.tcp_server.close( () => resolve('stopped') );
                 // this.destroy вызывается в обработчике закрытия
 
             }

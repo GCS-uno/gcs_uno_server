@@ -1,4 +1,4 @@
-import FlightPlansCollection from './FlightPlansCollection';
+import FlightPlansCollection from '../models/FlightPlansCollection';
 import Message from '../plugins/Message';
 
 const geocoder = new google.maps.Geocoder;
@@ -1089,7 +1089,7 @@ export default class FlightPlan {
 
         //
         // Список команд для которых нужно рисовать маркер на карте
-        // !!! этот список повторяется в DroneClient для отображения миссии у дрона на карте
+        // !!! этот список повторяется в MAVDroneClient для отображения миссии у дрона на карте
         const map_marker_commands = ['home', 16, 17, 18, 19, 21, 31, 82, 85];
 
         let marker = null;

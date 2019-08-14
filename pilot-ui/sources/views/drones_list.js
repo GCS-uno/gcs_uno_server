@@ -3,7 +3,7 @@ import {JetView} from "webix-jet";
 import DroneAddWindow from './popups/drone_add';
 import DroneEditWindow from './popups/drone_edit';
 
-import DronesCollection from './../models/DronesCollection';
+import DronesCollection from '../models/DronesCollection';
 
 let top_controls_id = null;
 
@@ -71,7 +71,7 @@ export default class DronesView extends JetView{
                     }
                     else if( 'control' === option ){
                         if( drone_item.type === "dji" ) _this.show('dji_drone_control?id=' + drone_id);
-                        else _this.show('drone_control?id=' + drone_id);
+                        else _this.show('mav_drone_control?id=' + drone_id);
                     }
                 }
 
@@ -157,8 +157,7 @@ const view_config = {
             //,css: 'webix_dark'
             ,columns:[
                 { id: "name",	header:"Name", fillspace: true},
-                //{ id: "udp_port",	header:"UDP port IN" , width: 150},
-                //{ id: "gcs_tcp_port",	header:"TCP port OUT" , width: 150},
+                { id: "type",	header:"Type" , width: 150, template: function(row){let value = row.type;if(value==="dji")return "DJI";else if(value==="mavlink")return "MAVLink";else return "Unknown"}},
                 { id: "status",	header:"Status" , width: 150}
             ]
 

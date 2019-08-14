@@ -1,7 +1,7 @@
 //
 // front end: controllers/drone_add
 //
-import DronesCollection from './../models/DronesCollection';
+import DronesCollection from '../models/DronesCollection';
 import Message from '../plugins/Message';
 
 export default {

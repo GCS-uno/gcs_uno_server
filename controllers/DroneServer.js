@@ -4,8 +4,7 @@ const common_config = require('../configs/common_config')
      ,server_config = require('../configs/server_config')
      ,MAVLink = require('./../utils/mavlink2/mavlink2')
      ,EventEmitter = require('events')
-     ,{redisClient, redisClientBuf, redisPubBuf, rHGetAll} = require('../utils/redis')
-     ,NodeRedisRpc = require('../utils/node-redis-rpc')
+     ,{redisClient, redisClientBuf, redisPubBuf, rHGetAll, RPC} = require('../utils/redis')
      ,Logger = require('../utils/logger')
      ,RK = require('./../defs/redis_keys')
      ,IK = require('./../defs/io_keys')
@@ -24,6 +23,7 @@ const common_config = require('../configs/common_config')
 
 const io = require('socket.io-emitter')({ host: server_config.REDIS_HOST, port: server_config.REDIS_PORT });
 
+const systemRPC = RPC;
 
 //
 // Подготовка индексов полей телеметрии
@@ -787,14 +787,6 @@ class HeartbeatController {
             // Включен ли ручной режим управления
             drone.telem1.set('rc', (64 & fields.base_mode ? 1 : 0));
 
-            //
-            // Общие характеристики полетного режима
-            //drone.telem1.set('m_stab', ((16 & fields.base_mode) ? 1 : 0));
-            //drone.telem1.set('m_guid', ((8 & fields.base_mode) ? 1 : 0));
-            //drone.telem1.set('m_auto', ((4 & fields.base_mode) ? 1 : 0));
-            //drone.telem1.set('base_mode', fields.base_mode);
-            //drone.telem1.set('custom_mode', fields.custom_mode);
-
             // Определить полетный режим из списка
             // Если включен CUSTOM MODE
             if( 1 & fields.base_mode && 'custom' === drone.data.modes_type ){
@@ -1005,7 +997,7 @@ class Telem1Controller {
             this.set('sats', parseInt(fields.satellites_visible) || 0);
 
             let gps_speed = Math.round(parseInt(fields.vel)*0.36)/10 || 0;
-            gps_speed = gps_speed > 0 && gps_speed < 10 ? gps_speed.toFixed(1) : gps_speed.toFixed(0);
+            gps_speed = gps_speed >= 0 && gps_speed < 10 ? gps_speed.toFixed(1) : gps_speed.toFixed(0);
             this.set('gps_speed', gps_speed); // in KPH!!!  GPS ground speed (m/s * 100). If unknown, set to: UINT16_MAX (Units: cm/s)
 
             // Если нет сообщений #33 GLOBAL_POSITION_INT, то ставим координаты отсюда. > 2 секунд
@@ -1158,9 +1150,9 @@ class Telem10Controller {
         // 30 ATTITUDE
         drone.mavlink.on('ATTITUDE', fields => {
             const pi = Math.PI;
-            this.set('r', Math.round(fields.roll * (180/pi))); // Roll angle (rad, -pi..+pi) (Units: rad)
-            this.set('p', Math.round(fields.pitch * (180/pi)));
-            this.set('y', Math.round(fields.yaw * (180/pi)));
+            this.set('roll', Math.round(fields.roll * (180/pi))); // Roll angle (rad, -pi..+pi) (Units: rad)
+            this.set('pitch', Math.round(fields.pitch * (180/pi)));
+            this.set('yaw', Math.round(fields.yaw * (180/pi)));
         });
 
     }
@@ -1210,57 +1202,53 @@ class CommandController {
         //          Установка методов RPC
         //          Эти методы запрашивает rpc_routes для отправки данных в браузер
         //
-        // Запуск UDP сервера для дрона.
-        drone.RPC.on(RK.START_DRONE_UDP(drone.id), (data, channel, response_callback) => {
+
+        // Запуск UDP сервера
+        drone.RPC.setMethod('startUDP', (data, response_handler) => {
 
             const udp_port = parseInt(drone.data.db_params.udp_port) || null;
-            if( !udp_port ) return response_callback('UDP port not set');
-            if( udp_port < common_config.DRONE_UDP_PORT_MIN || udp_port > common_config.DRONE_UDP_PORT_MAX ) return response_callback('UDP port not allowed');
+            if( !udp_port ) return response_handler('UDP port not set');
+            if( udp_port < common_config.DRONE_UDP_PORT_MIN || udp_port > common_config.DRONE_UDP_PORT_MAX ) return response_handler('UDP port not allowed');
 
-            drone.RPC.req(RK.DRONE_UDP_PROXY_START(), {drone_id: drone.id, port: udp_port })
-                .then( result => response_callback(null, result) )
-                .catch( response_callback );
+            systemRPC.req(RK.DRONE_UDP_PROXY_START(), {drone_id: drone.id, port: udp_port })
+                .then( result => response_handler(null, result) )
+                .catch( response_handler );
 
         });
-        //
-        // Остановка UDP сервера для дрона
-        drone.RPC.on(RK.STOP_DRONE_UDP(drone.id), (data, channel, response_callback) => {
 
-            drone.RPC.req(RK.DRONE_UDP_PROXY_STOP(), {drone_id: drone.id})
+        // Остановка UDP сервера
+        drone.RPC.setMethod('stopUDP', (data, response_handler) => {
+
+            systemRPC.req(RK.DRONE_UDP_PROXY_STOP(), {drone_id: drone.id})
                 .then( result => {
                     drone.info.set({udp_ip_s: 0, udp_ip_c: 'stopped'});
-                    response_callback(null, result);
+                    response_handler(null, result);
                 })
-                .catch( response_callback );
-
+                .catch( response_handler );
         });
-        //
-        // Запуск TCP сервера для GCS
-        drone.RPC.on(RK.START_GCS_TCP(drone.id), (data, channel, response_callback) => {
 
+        // Запуск TCP сервера
+        drone.RPC.setMethod('startGCSTCP', (data, response_handler) => {
             const tcp_port = parseInt(drone.data.db_params.gcs_tcp_port) || null;
-            if( !tcp_port ) return response_callback('TCP port not set');
-            if( tcp_port < common_config.GCS_TCP_PORT_MIN || tcp_port > common_config.GCS_TCP_PORT_MAX ) return response_callback('TCP port not allowed');
+            if( !tcp_port ) return response_handler('TCP port not set');
+            if( tcp_port < common_config.GCS_TCP_PORT_MIN || tcp_port > common_config.GCS_TCP_PORT_MAX ) return response_handler('TCP port not allowed');
 
-            drone.RPC.req(RK.DRONE_GCS_TCP_PROXY_START(), {drone_id: drone.id, port: tcp_port })
-                .then( result => response_callback(null, result) )
-                .catch(response_callback);
-
+            systemRPC.req(RK.DRONE_GCS_TCP_PROXY_START(), {drone_id: drone.id, port: tcp_port })
+                .then( result => response_handler(null, result) )
+                .catch(response_handler);
         });
-        //
-        // Остановка TCP сервера
-        drone.RPC.on(RK.STOP_GCS_TCP(drone.id), (data, channel, response_callback) => {
 
-            drone.RPC.req(RK.DRONE_GCS_TCP_PROXY_STOP(), {drone_id: drone.id})
+        // Остановка TCP сервера
+        drone.RPC.setMethod('stopGCSTCP', (data, response_handler) => {
+            systemRPC.req(RK.DRONE_GCS_TCP_PROXY_STOP(), {drone_id: drone.id})
                 .then( result => {
                     drone.info.set({tcp_op_s: 0, tcp_op_c: 'stopped'});
-                    response_callback(null, result);
+                    response_handler(null, result);
                 })
-                .catch( response_callback );
+                .catch( response_handler );
         });
 
-
-        // При удалении и остановке дрона
+            // При удалении и остановке дрона
         drone.events.on('destroy', () => {
             drone.redis.Sub.unsubscribe(drone.data_channels.DRONE_UI_COMMANDS);
         });
@@ -1838,8 +1826,7 @@ class JoystickController {
                 // Отправить сообщение SET_POSITION_TARGET_LOCAL_NED
                 this.drone.mavlink.sendMessage('SET_POSITION_TARGET_LOCAL_NED', fields);
 
-                console.log(JSON.stringify(fields));
-
+                //console.log("JOY TEST", JSON.stringify(fields));
             }
 
             // other modes
@@ -2341,7 +2328,7 @@ class LogDownloadController {
         });
 
         // Удаление логов на борту
-        drone.RPC2.setMethod('eraseBoardLogs', (data, response_handler) => {
+        drone.RPC.setMethod('eraseBoardLogs', (data, response_handler) => {
             if( !drone.info.isOnline() ) response_handler('Drone offline');
 
             _this.drone.mavlink.sendMessage('LOG_ERASE', {
@@ -2352,7 +2339,7 @@ class LogDownloadController {
         });
 
         // Загрузить и отправить список лог файлов на борту
-        drone.RPC2.setMethod('getBoardLogs', (data, response_handler) => {
+        drone.RPC.setMethod('getBoardLogs', (data, response_handler) => {
             this.get_list()
                 .then( list => {
 
@@ -2407,7 +2394,7 @@ class LogDownloadController {
         });
 
         // Запрос загрузки лог файла по id
-        drone.RPC2.setMethod('downloadBoardLog', (log_id, response_handler) => {
+        drone.RPC.setMethod('downloadBoardLog', (log_id, response_handler) => {
             // Если в данный момент идет загрузка лога, то текущий номер помещается в очередь
             if( this.download_in_progress || this.parsing_in_progress ){
                 this.download_queue.push(log_id);
@@ -2420,13 +2407,13 @@ class LogDownloadController {
         });
 
         // Остановка загрузки по id
-        drone.RPC2.setMethod('logDLCancel', (log_id, response_handler) => {
+        drone.RPC.setMethod('logDLCancel', (log_id, response_handler) => {
             this.stop(log_id);
             response_handler(null, 'OK');
         });
 
         // Удаление лога из списка ожидания
-        drone.RPC2.setMethod('logDLCancelQ', (log_id, response_handler) => {
+        drone.RPC.setMethod('logDLCancelQ', (log_id, response_handler) => {
             this.download_queue = _.filter(this.download_queue, function(i){return i !== log_id});
             response_handler(null, 'OK');
         });
@@ -2596,7 +2583,7 @@ class ParamsController {
         });
 
         // Запрос списка параметров
-        drone.RPC2.setMethod('getBoardParams', (data, response_handler) => {
+        drone.RPC.setMethod('getBoardParams', (data, response_handler) => {
 
             if( !this.params_count ){
                 return response_handler("Parameters are not loaded yet");
@@ -2611,14 +2598,13 @@ class ParamsController {
         });
 
         // Сохранение параметров
-        drone.RPC2.setMethod('saveBoardParams', (data, response_handler) => {
+        drone.RPC.setMethod('saveBoardParams', (data, response_handler) => {
 
             if( !this.drone.info.isOnline() ) return response_handler('Drone gone offline');
 
             if( !_.isArray(data) || !data.length ) return response_handler('Empty list');
 
             _.each(data, param => {
-                console.log('each', param.id, param.val);
                 this.set(param.id, param.val);
             });
 
@@ -2630,7 +2616,6 @@ class ParamsController {
 
     request_params(){
 
-        //console.log('requesting params');
         this.missing_params = [];
 
         // Запросить лист
@@ -2750,10 +2735,6 @@ class DroneServer {
                 }
             };
 
-            // FIXME перевести все на RPC2
-            this.RPC = new NodeRedisRpc({emitter: this.redis.Pub, receiver: this.redis.Sub});
-
-
             // Инициализация MAVLink
             this.mavlink = new MAVLinkController(this);
 
@@ -2765,7 +2746,7 @@ class DroneServer {
             // Контроллеры
             this.info = new InfoController(this);
             this.heartbeat = new HeartbeatController(this);
-            this.RPC2 = new DroneRPCController(this);
+            this.RPC = new DroneRPCController(this);
             this.joystick = new JoystickController(this);
             this.commands = new CommandController(this);
             this.telem1 = new Telem1Controller(this);
@@ -2797,16 +2778,16 @@ class DroneServer {
 
         // Рестарт сервисов зависимых от параметров
         if( udp_proxy_restart ){
-            this.RPC.req(RK.DRONE_UDP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
-                .then(function(data){
-                    Logger.info('UDP RESTARTED ', data);
+            systemRPC.req(RK.DRONE_UDP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
+                .then(result => {
+                    Logger.info('UDP RESTARTED ', result);
                 })
                 .catch( err => {
                     Logger.info('UDP ERR RESTARTED ', err);
                 });
         }
         if( tcp_proxy_restart ){
-            this.RPC.req(RK.DRONE_GCS_TCP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
+            systemRPC.req(RK.DRONE_GCS_TCP_PROXY_RESTART(), {drone_id: this.id, port: this.data.db_params.udp_port })
                 .then(function(data){
                     Logger.info('TCP RESTARTED ', data);
                 })
@@ -2826,7 +2807,7 @@ class DroneServer {
 
         // Если запущены UDP и TCP серверы, то остановить их
         if( this.info.get('udp_ip_s') === 1 ){
-            this.RPC.req(RK.DRONE_UDP_PROXY_STOP(), { drone_id: this.id })
+            systemRPC.req(RK.DRONE_UDP_PROXY_STOP(), { drone_id: this.id })
                 .then(function(data){
                     Logger.info('UDP STOPPED ', data);
                 })
@@ -2837,7 +2818,7 @@ class DroneServer {
 
         // Если запущен TCP Proxy, а порт изменен
         if( this.info.get('tcp_op_s') === 1 ){
-            this.RPC.req(RK.DRONE_GCS_TCP_PROXY_STOP(), { drone_id: this.id })
+            systemRPC.req(RK.DRONE_GCS_TCP_PROXY_STOP(), { drone_id: this.id })
                 .then(function(data){
                     Logger.info('TCP STOPPED ', data);
                 })

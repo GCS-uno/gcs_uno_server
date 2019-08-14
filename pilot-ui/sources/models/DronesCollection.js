@@ -1,5 +1,5 @@
-import Drone from './DroneClient';
-import DJIDrone from './DJIDroneClient';
+import MAVDrone from '../controllers/MAVDroneClient';
+import DJIDrone from '../controllers/DJIDroneClient';
 import Message from '../plugins/Message';
 
 const DronesCollection = new webix.DataCollection({
@@ -12,7 +12,7 @@ const DronesCollection = new webix.DataCollection({
                 let drone = this.getItem(id);
                 if( drone ){
                     if( drone.type === "dji" ) this.Drones[id] = new DJIDrone(id);
-                    else this.Drones[id] = new Drone(id);
+                    else this.Drones[id] = new MAVDrone(id);
                 }
 
             }
@@ -28,7 +28,7 @@ const DronesCollection = new webix.DataCollection({
 
                     if( !this.Drones[drone.id] ){
                         if( drone.type === "dji" ) this.Drones[drone.id] = new DJIDrone(drone.id);
-                        else this.Drones[drone.id] = new Drone(drone.id);
+                        else this.Drones[drone.id] = new MAVDrone(drone.id);
                     }
 
                 });
@@ -38,7 +38,7 @@ const DronesCollection = new webix.DataCollection({
 });
 
 //
-// Сборка экземпляров DroneClient с ключем по id
+// Сборка экземпляров MAVDroneClient с ключем по id
 // let drone = DronesCollection.Drones[drone_id];
 DronesCollection.Drones = {};
 

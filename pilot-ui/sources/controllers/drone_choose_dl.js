@@ -1,4 +1,4 @@
-import DronesCollection from './../models/DronesCollection';
+import DronesCollection from '../models/DronesCollection';
 
 let event1 = null;
 

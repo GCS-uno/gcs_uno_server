@@ -1,5 +1,7 @@
 const path = require("path");
 const webpack = require("webpack");
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+
 
 module.exports = function(env) {
 
@@ -42,7 +44,7 @@ module.exports = function(env) {
 				}
 			]
 		},
-		stats:"minimal",
+		stats: "minimal",
 		resolve: {
 			extensions: [".js"],
 			modules: ["./pilot-ui/sources", "node_modules"],
@@ -61,6 +63,7 @@ module.exports = function(env) {
 				PRODUCTION : production,
 				BUILD_AS_MODULE : (asmodule || standalone)
 			})
+			,new BundleAnalyzerPlugin()
 		],
 		devServer:{
 			stats:"errors-only",

@@ -17,9 +17,9 @@ const mavlink_telem1_fields = [
 ];
 
 const mavlink_telem10_fields = [
-     'r' //roll
-    ,'p' //pitch
-    ,'y' //yaw
+     'roll'
+    ,'pitch'
+    ,'yaw'
 ];
 
 const dji_telem1_fields = [

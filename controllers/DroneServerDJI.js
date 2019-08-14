@@ -227,7 +227,7 @@ class DJIHeartbeatController {
             // * 1 *
             // Если дрон онлайн, то проверить время последнего сообщения.
             // Если оно более 2 сек назад, то ставим статус ОФФлайн
-            if( drone.info.get('online') && drone.info.get('last_message_time') < now-2 ) {
+            if( drone.info.get('online') && drone.info.get('last_message_time') < now-5 ) {
                 drone.info.set({online: 0});
                 drone.events.emit('isOffline', (now - drone.info.get('online_from')));
             }

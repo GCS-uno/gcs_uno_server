@@ -1,4 +1,4 @@
-import DronesCollection from './../models/DronesCollection';
+import DronesCollection from '../models/DronesCollection';
 import Message from '../plugins/Message';
 
 export default {

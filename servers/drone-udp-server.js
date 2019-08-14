@@ -10,7 +10,7 @@ const {redisClient, RPC} = require('../utils/redis')
 
 //
 // Достаем список дронов из БД, проверяем должен ли быть включен UDP сервер для дрона
-DroneModel.getList().run()
+DroneModel.filter({type:"mavlink"}).run()
     .then(function(result) {
         _.forEach(result, drone => {
 
@@ -47,24 +47,24 @@ DroneModel.getList().run()
 //  Управление UDP серверами
 //
 RPC.on(RK.DRONE_UDP_PROXY_START(), function(data, channel, response_callback){
+    console.log("Start request for " + data.port);
     DroneUDPProxyController.start(data.drone_id, data.port)
-        .then( data => response_callback(null, data) )
+        .then( result => response_callback(null, result) )
         .catch( response_callback );
 
 });
 
 RPC.on(RK.DRONE_UDP_PROXY_STOP(), function(data, channel, response_callback){
-
+    console.log("Stop request");
     DroneUDPProxyController.stop(data.drone_id)
-        .then( data => response_callback(null, data) )
+        .then( result => response_callback(null, result) )
         .catch( response_callback );
 
 });
 
 RPC.on(RK.DRONE_UDP_PROXY_RESTART(), function(data, channel, response_callback){
-
     DroneUDPProxyController.restart(data.drone_id, data.port)
-        .then( data => response_callback(null, data) )
+        .then( result => response_callback(null, result) )
         .catch( response_callback );
 
 });

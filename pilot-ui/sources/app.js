@@ -157,8 +157,8 @@ webix.protoUI({
 	,defaults:{
 		width: 200
 		,size: 200
-		//,on:{'onItemClick' : function(){}} //attached events
 	},
+
 	$init: function(config){
 		let img_dir = "static/fi/";
 		this.$view.innerHTML = '<div class="instrument attitude"><div class="roll box"><img src="' + img_dir + 'horizon_back.svg" class="box" alt="" /><div class="pitch box"><img src="' + img_dir + 'horizon_ball.svg" class="box" alt="" /></div><img src="' + img_dir + 'horizon_circle.svg" class="box" alt="" /></div><div class="mechanics box"><img src="' + img_dir + 'horizon_mechanics.svg" class="box" alt="" /><img src="' + img_dir + 'fi_circle.svg" class="box" alt="" /></div></div>';
@@ -174,35 +174,20 @@ webix.protoUI({
 		});
 	}
 
-	,setRoll: function(roll){
-		let el = this.$view.querySelectorAll("div.instrument.attitude div.roll")[0];
-		if( el ){
-			el.style.transform = "rotate(" + -roll + "deg)";
-		}
-	}
+	,bind: function(dataRecord){
+		let eventId = null;
+		eventId = dataRecord.attachEvent('onChange', rec => {
+			if( !this.$view ){
+				if( eventId ) dataRecord.detachEvent(eventId);
+				eventId = null;
+				return;
+			}
 
-	,setPitch: function(pitch){
-		let el = this.$view.querySelectorAll("div.instrument.attitude div.roll div.pitch")[0];
+			let roll_el = this.$view.querySelectorAll("div.instrument.attitude div.roll")[0];
+			let pitch_el = this.$view.querySelectorAll("div.instrument.attitude div.roll div.pitch")[0];
 
-		if( pitch > 30 ){ pitch = 30; }
-		else if( pitch < -30 ){ pitch = -30; }
+			if( !roll_el || !pitch_el ) return;
 
-		if( el ){
-			el.style.top = pitch*0.7 + "%";
-		}
-	}
-
-	,connectDataRecord: function(dataRecord){
-		let roll_el = this.$view.querySelectorAll("div.instrument.attitude div.roll")[0];
-		let pitch_el = this.$view.querySelectorAll("div.instrument.attitude div.roll div.pitch")[0];
-
-
-		if( !roll_el || !pitch_el ){
-			console.log('Horizon: Error connecting to datarecord');
-			return;
-		}
-
-		dataRecord.attachEvent('onChange', rec => {
 			let roll = parseInt(rec.roll);
 			if( isNaN(roll) ) roll = 0;
 			let pitch = parseInt(rec.pitch);
@@ -222,7 +207,6 @@ webix.protoUI({
 	,defaults:{
 		width: 200
 		,size: 200
-		//,on:{'onItemClick' : function(){}} //attached events
 	},
 	$init: function(config){
 		let img_dir = "static/fi/";
@@ -239,23 +223,15 @@ webix.protoUI({
 		});
 	}
 
-	,setHeading: function(heading){
-		let el = this.$view.querySelectorAll("div.instrument.heading div.heading")[0];
-
-		if( el ){
-			el.style.transform = "rotate(" + -heading + "deg)";
-		}
-
-	}
-
-	,connectDataRecord: function(dataRecord){
-		let el = this.$view.querySelectorAll("div.instrument.heading div.heading")[0];
-
-		if( !el ){
-			console.log('Compass: Error connecting to datarecord');
-			return;
-		}
-		dataRecord.attachEvent('onChange', rec => {
+	,bind: function(dataRecord){
+		let eventId = null;
+		eventId = dataRecord.attachEvent('onChange', rec => {
+			if( !this.$view ){
+				if( eventId ) dataRecord.detachEvent(eventId);
+				eventId = null;
+				return;
+			}
+			let el = this.$view.querySelectorAll("div.instrument.heading div.heading")[0];
 			if( el ){
 				let heading = parseInt(rec.yaw);
 				if( isNaN(heading) ) heading = 0;
@@ -322,16 +298,24 @@ webix.protoUI({
 		let el = this.$view.querySelectorAll("div.t_elem span.value")[0];
 
 		if( el ){
-			el.innerHTML = value + "";
+			el.innerHTML = this.parseValue(value);
 		}
+	}
 
+	,setLabel: function(label){
+		let el = this.$view.querySelectorAll("div.t_elem span.label")[0];
+
+		if( el ){
+			if( !label ) label = "";
+			el.innerHTML = label + "";
+		}
 	}
 
 	,getState: function(){
 		return this.state;
 	}
 
-	// normal, warn, danger
+	// normal, warn, danger, active
 	,setState: function(state='normal'){ // warn, danger
 
 		this.state = state;
@@ -367,18 +351,27 @@ webix.protoUI({
 		this.current_icon = icon;
 	}
 
-	,connectDataRecord: function(dataRecord){
-		let el = this.$view.querySelectorAll("div.t_elem span.value")[0];
+	,connectDataRecord: function(dataRecord, field){
+		let eventId = null;
+		eventId = dataRecord.attachEvent('onChange', rec => {
+			if( !this.$view ){
+				if( eventId ) dataRecord.detachEvent(eventId);
+				eventId = null;
+				return;
+			}
 
-		if( !el ){
-			console.log('Error connecting to datarecord');
-			return;
-		}
-		dataRecord.attachEvent('onChange', rec => {
-			let value = rec[this.init_config.data_field];
-			if( value === null || value === undefined ) value = '--';
-			el.innerHTML = value + '';
+			let el = this.$view.querySelectorAll("div.t_elem span.value")[0];
+			if( !el ) return;
+
+			let value = rec[field];
+			if( value === null || value === undefined ) value = '??';
+			el.innerHTML = this.parseValue(value);
 		});
+	}
+
+	// Redefine in view init
+	,parseValue: function(value){
+		return value + '';
 	}
 
 }, webix.ui.view, webix.EventSystem );

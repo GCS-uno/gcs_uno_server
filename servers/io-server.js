@@ -281,7 +281,7 @@ try {
 
                                 // Найти дрон в БД
                                 // Если данные не пустые
-                                if( droneName.length > 2 && droneSN.length > 2 ){
+                                if( droneName.length > 4 && droneSN.length > 5 ){
 
                                     DroneModel.filter({dji_model: droneName, dji_fc_serial: droneSN}).run()
                                         .then( list => {

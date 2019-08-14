@@ -6,7 +6,7 @@ import DronesCollection from "../models/DronesCollection";
 let top_controls_id = null;
 
 
-export default class DroneView extends JetView {
+export default class MAVDroneView extends JetView {
 
     config(){
         return view_config;
@@ -26,8 +26,6 @@ export default class DroneView extends JetView {
         this.params_list_popup = this.ui(params_list_popup);
 
         top_controls_id = webix.$$('top_view_controls').addView(top_controls);
-
-        webix.TooltipControl.addTooltip(this.telemetry_popup.$view);
 
     }
 
@@ -90,6 +88,29 @@ export default class DroneView extends JetView {
 
 }
 
+
+// Параметры карты
+const map_options = {
+    fullscreenControl: false
+    ,panControl: false
+    ,rotateControl: false
+    ,streetViewControl: false
+    ,scaleControl: false
+    ,zoomControlOptions: {
+        position: google.maps.ControlPosition.LEFT_BOTTOM
+    }
+    ,mapTypeControlOptions: {
+        position: google.maps.ControlPosition.BOTTOM_LEFT
+    }
+};
+const map_config = {
+    view:"google-map"
+    ,localId: "map:drone"
+    ,zoom: 10
+    ,mapType: 'SATELLITE'
+    ,center:[ 55, 37 ]
+    ,zIndex: 1
+};
 
 // Меню с кнопками управления
 const action_menu_popup = {
@@ -448,8 +469,6 @@ const params_list_popup = {
     }
 };
 
-
-//
 // Кнопки для верхней панели
 const top_controls = {
     cols: [
@@ -553,105 +572,80 @@ const top_controls = {
     ]
 };
 
-
-// Параметры карты
-const map_options = {
-    fullscreenControl: false
-    ,panControl: false
-    ,rotateControl: false
-    ,streetViewControl: false
-    ,scaleControl: false
-    ,zoomControlOptions: {
-        position: google.maps.ControlPosition.LEFT_BOTTOM
-    }
-    ,mapTypeControlOptions: {
-        position: google.maps.ControlPosition.BOTTOM_LEFT
-    }
-};
-const map_config = {
-    view:"google-map"
-    ,localId: "map:drone"
-    ,zoom: 10
-    ,mapType: 'SATELLITE'
-    ,center:[ 55, 37 ]
-    ,zIndex: 1
-};
-
 // Панель с телеметрией сверху карты
 const telemetry_popup = {
     view: 'window'
-    ,id: 'drone_view_popup_telemetry'
+    ,id: 'popup_telemetry2'
     ,css: 'transp'
     ,head: false
     ,borderless: true
     ,body: {
-        width: 550
+        width: 700
         ,borderless: true
         ,css: 'transp'
         ,rows: [
-            // telemetry data
             {
-                template: function(data){ // TODO назначить сюда контрллер, который выборочно будет показывать телеметрию
-                    let template = '';
-
-                    //
-                    // Высота
-                    template += '<span class="t_elem t_elem_plain" webix_tooltip="Altitude"><span class="webix_icon mdi mdi-arrow-expand-down"></span><span style="width:40px;margin-right:10px">' + (helpers.isNil(data.alt) ? '' : `<b>${data.alt>10?Math.round(data.alt):data.alt.toFixed(1)}</b> m`) + '</span></span>';
-
-                    //
-                    // Скорость
-                    template += '<span class="t_elem t_elem_plain" webix_tooltip="GPS speed"><span class="webix_icon mdi mdi-speedometer"></span><span style="margin-right:10px">' + (helpers.isNil(data.gps_speed) || isNaN(data.gps_speed) ? '' : `${data.gps_speed} km/h`) + '</span></span>';
-
-                    //
-                    // Спутники
-                    let sats_bg = 't_elem_plain'
-                        ,sats = parseInt(data.sats);
-                    if( !helpers.isNil(data.sats) && sats < 5 ) sats_bg = 't_elem_danger';
-                    else if( !helpers.isNil(data.sats) && sats < 8 ) sats_bg = 't_elem_warn';
-                    template += '<span class="t_elem ' + sats_bg + '" webix_tooltip="Number of visible satellites"><span class="webix_icon mdi mdi-satellite-variant"></span><span style="width:40px;margin-right:10px"><b>' + sats + '</b></span></span>';
-
-                    //
-                    // Напряжение
-                    template += '<span class="t_elem t_elem_plain" webix_tooltip="Battery voltage"><span class="webix_icon mdi mdi-battery-outline"></span><span style="width:60px;margin-right:10px">' + data.bat_v + '<i>V</i></span></span>';
-
-                    //
-                    // Дистанция до точки старта
-                    let  dist_home = ''
-                        ,dist_home_bg = 't_elem_plain'
-                        ,dist_home_tooltip = 'Distance to home. Click to move map on home position'
-                        ,dist = parseInt(data.dist_home);
-
-                    if( helpers.isNil(dist) || dist < 0 ){
-                        dist_home = 'No home!';
-                        dist_home_bg = 't_elem_danger';
-                        dist_home_tooltip = 'Home position is not set';
+                cols: [
+                    {
+                        view: 'telem_widget'
+                        ,localId: 'tw:mapCenter'
+                        ,icon: 'crosshairs-gps'
+                        ,label: false
+                        ,value: false
+                        ,clickable: true
+                        ,state: "active"
+                        ,tooltip: 'Center drone on map'
+                        ,width: 40
                     }
-                    else if( !helpers.isNil(dist) && dist >= 0 ){
-                        if( dist > 999 ) dist_home = `${(dist/1000).toFixed(2)} km`;
-                        else dist_home = `${dist} m`;
+                    ,{ // dist_home
+                        view: 'telem_widget'
+                        ,localId: 'tw:dist_home'
+                        ,icon: 'home'
+                        ,label: 'm'
+                        ,tooltip: 'Distance to Home<br/>Click to center home position'
+                        ,width: 105
+                        ,clickable: true
                     }
-                    template += '<span class="t_elem ' + dist_home_bg + ' t1_dist_home t_elem_clickable" webix_tooltip="' + dist_home_tooltip + '"><span class="webix_icon mdi mdi-home"></span><span style="width:60px;margin-right:10px">' + dist_home + '</span></span>';
-
-
-                    return template;
-                }
-                ,height: 50
-                ,localId: 'tpl:telem_top'
-                ,data: {
-                     sats: ''
-                    ,bat_v: ''
-                    ,temp: ''
-                }
-                ,css: 'transp'
-                ,onClick:{
-                    "t1_dist_home": function(e, id, trg){
-                        this.callEvent('clickOnHome');
-                        return false; // here it blocks the default behavior
+                    ,{ // sats
+                        view: 'telem_widget'
+                        ,localId: 'tw:sats'
+                        ,icon: 'satellite-variant'
+                        ,label: false
+                        ,tooltip: 'Satellites visible'
+                        ,width: 65
                     }
-                }
+                    ,{ // bat_v
+                        view: 'telem_widget'
+                        ,localId: 'tw:bat_v'
+                        ,icon: 'battery'
+                        ,label: 'V'
+                        ,tooltip: 'Battery Voltage'
+                        ,width: 95
+                    }
+                ]
             }
-        ]
+            ,{
+                cols: [
+                    { // alt
+                        view: 'telem_widget'
+                        ,localId: 'tw:alt'
+                        ,icon: 'arrow-expand-down'
+                        ,label: 'm'
+                        ,tooltip: 'Altitude'
+                        ,width: 100
+                    }
+                    ,{ // gps_speed
+                        view: 'telem_widget'
+                        ,localId: 'tw:speed'
+                        ,icon: 'speedometer'
+                        ,label: 'kph'
+                        ,tooltip: 'Ground speed'
+                        ,width: 100
+                    }
+                ]
+            }
 
+        ]
     }
 };
 
@@ -659,10 +653,9 @@ const telemetry_popup = {
 const fi_popup = {
     view: 'window'
     ,id: 'drone_view_popup_fi'
-    ,css: 'transp'
+    ,css: 'transp' // highZ
     ,head: false
     ,borderless: true
-    ,disabled: true
     ,zIndex: 5
     ,body: {
         width:520
@@ -670,26 +663,7 @@ const fi_popup = {
         ,rows: [
 
             // video screen
-            {
-                view: 'multiview'
-                ,width: 520
-                ,height: 300
-                ,animate: false
-                ,css: 'transp_9'
-                ,cells: [
-                    {
-                        template: '<div id="video_player" style="width:500px; height:285px;"></div>'
-                        ,view: 'template'
-                        ,height: 300
-                        ,localId: 'tpl:video_player'
-                    }
-                    ,{
-                        template: '<img src="static/white_noise.gif" class="video_noise_320">'
-                        ,height: 300
-                        ,localId: 'tpl:video_noise'
-                    }
-                ]
-            }
+            { borderless: true, padding: 0, template: '<div id="video_player" style="width:500px; height:282px;padding:0;margin:0;background-color:#000"></div>', height: 292 }
 
             // Переключатели источника видео
             ,{
@@ -885,14 +859,12 @@ const fi_popup = {
     }
 };
 
-
 // Основной вид
 const view_config = {
     padding: 0
     ,borderless: true
     ,border: false
     ,localId: 'body'
-    ,disabled: true
     ,cols: [
         // map
         map_config

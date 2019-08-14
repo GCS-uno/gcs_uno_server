@@ -1,4 +1,4 @@
-import FlightPlan from './FlightPlan';
+import FlightPlan from '../controllers/FlightPlan';
 import Message from "../plugins/Message";
 
 

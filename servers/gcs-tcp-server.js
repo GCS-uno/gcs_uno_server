@@ -18,7 +18,7 @@ const {RPC, rHGet} = require('../utils/redis')
 
 
 // Достаем список дронов из БД и создаем для каждого TCP сервер
-DroneModel.getList().run()
+DroneModel.filter({type:"mavlink"}).run()
     .then(function(result) {
         _.forEach(result, function(drone){
 
