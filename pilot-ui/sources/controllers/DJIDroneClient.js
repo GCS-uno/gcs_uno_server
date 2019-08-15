@@ -439,9 +439,9 @@ class DJIDroneClient {
                     // Текущее состояние ARM
                     _this.view_els.label_armed.setValue("ARMED");
                     // Скрыть кнопку ARM
-                    if( _this.view_els.arm_btn.isVisible() ) _this.view_els.arm_btn.hide();
+                    //if( _this.view_els.arm_btn.isVisible() ) _this.view_els.arm_btn.hide();
                     // Показать кнопку DISARM
-                    if( !_this.view_els.disarm_btn.isVisible() ) _this.view_els.disarm_btn.show();
+                    //if( !_this.view_els.disarm_btn.isVisible() ) _this.view_els.disarm_btn.show();
 
                 }
                 // Если нет
@@ -449,8 +449,8 @@ class DJIDroneClient {
                     // Текущее состояние Disarmed
                     _this.view_els.label_armed.setValue("Disarmed");
 
-                    if( _this.view_els.disarm_btn.isVisible() ) _this.view_els.disarm_btn.hide();
-                    if( !_this.view_els.arm_btn.isVisible() ) _this.view_els.arm_btn.show();
+                    //if( _this.view_els.disarm_btn.isVisible() ) _this.view_els.disarm_btn.hide();
+                    //if( !_this.view_els.arm_btn.isVisible() ) _this.view_els.arm_btn.show();
 
                 }
 
@@ -571,7 +571,7 @@ class DJIDroneClient {
             if( _this.home_marker.getPosition() ) _this.home_marker.setMap(_this.view_els.map);
 
             hide_view_els(['top_tpl_offline']);
-            show_view_els(['label_mode','label_armed','top_icon_statuses','top_icon_actions']); // 'btn_guided','btn_cm_loiter','takeoff_btn','land_btn','rtl_btn',
+            show_view_els(['label_mode','label_armed','top_icon_statuses']); // 'btn_guided','btn_cm_loiter','takeoff_btn','land_btn','rtl_btn',,'top_icon_actions'
 
             // Показать виджеты телеметрии
             _this.view_els.telem_top.show({y:60, x: 50});
@@ -620,7 +620,7 @@ class DJIDroneClient {
             hide_view_els(['label_armed','telem_top','arm_btn','disarm_btn','label_mode','btn_guided','takeoff_btn','land_btn','rtl_btn','btn_cm_loiter',
                 'takeoff_popup','params_list_popup','logs_list_popup','top_icon_actions']);
             // Показать элементы управления
-            show_view_els(['top_icon_info','top_icon_statuses','top_tpl_offline','top_icon_actions']);
+            show_view_els(['top_icon_info','top_icon_statuses','top_tpl_offline']); // 'top_icon_actions'
 
             // FIXME удалить
             //_this.view_els.telem_top.show({y:60, x: 50});
