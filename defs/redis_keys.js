@@ -154,10 +154,6 @@ const keys_prefixes = {
 
     //
     // Browser <-> RPC routes
-    ,START_DRONE_UDP: 'startDroneUDP_id_' // + DRONE_ID
-    ,STOP_DRONE_UDP: 'stopDroneUDP_id_' // + DRONE_ID
-    ,START_GCS_TCP: 'startDroneGCSTCP_id_' // + DRONE_ID
-    ,STOP_GCS_TCP: 'stopDroneGCSTCP_id_' // + DRONE_ID
     ,DRONE_RPC: 'droneRPC_id_' // + DRONE_ID
 
     // Drone UDP Proxy controller
