@@ -42,7 +42,7 @@ The pilot's dashboard can be accessed from any modern browser. We recommend [Goo
 Follow [installation guide](https://docs.gcs.uno/ServerSetup/BasicInstallation/) to setup your system.
 
 
-[Documentation](https://docs.gcs.uno/)
+[Documentation](https://docs.gcs.uno/)  
 [GCS.uno website](https://www.gcs.uno/)  
 [Support forum](https://www.gcs.uno/support-forum)  
 [GCS.uno Server License](https://docs.gcs.uno/Legal/License/)  
