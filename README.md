@@ -46,3 +46,10 @@ Follow [installation guide](https://docs.gcs.uno/ServerSetup/BasicInstallation/)
 [GCS.uno website](https://www.gcs.uno/)  
 [Support forum](https://www.gcs.uno/support-forum)  
 [GCS.uno Server License](https://docs.gcs.uno/Legal/License/)  
+
+
+## Paid support and customization
+
+Available upon your request on [GCS.uno website](https://www.gcs.uno/contact-us) 
+
+
