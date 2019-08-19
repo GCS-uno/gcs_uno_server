@@ -29,6 +29,15 @@ DJI drones use our [GCS.uno iOS mobile app](https://docs.gcs.uno/ConnectDrone/GC
 Check [Connect DJI drones](https://docs.gcs.uno/ConnectDrone/Connect-DJI-drones/) for more info. 
 
 
+##  Help and docs
+
+Follow [installation guide](https://docs.gcs.uno/ServerSetup/BasicInstallation/) to setup your system.  
+
+[Documentation](https://docs.gcs.uno/)  
+[GCS.uno website](https://www.gcs.uno/)  
+[Support forum](https://www.gcs.uno/support-forum)  
+
+
 ## Under the hood
 
 GCS.uno Server runs in [NodeJS](https://nodejs.org/en/) environment and uses [Redis Server](https://redislabs.com)
@@ -39,17 +48,11 @@ as in-memory key-value store and [RethinkDB](https://www.rethinkdb.com) as a doc
 The pilot's dashboard can be accessed from any modern browser. We recommend [Google Chrome](https://www.google.ru/chrome/) or other [Chromium-based browsers](https://en.wikipedia.org/wiki/Chromium_(web_browser)#Browsers_based_on_Chromium).
 
 
-Follow [installation guide](https://docs.gcs.uno/ServerSetup/BasicInstallation/) to setup your system.
-
-
-[Documentation](https://docs.gcs.uno/)  
-[GCS.uno website](https://www.gcs.uno/)  
-[Support forum](https://www.gcs.uno/support-forum)  
-[GCS.uno Server License](https://docs.gcs.uno/Legal/License/)  
-
-
 ## Paid support and customization
 
 Available upon your request on [GCS.uno website](https://www.gcs.uno/contact-us) 
+
+
+[GCS.uno Server License](https://docs.gcs.uno/Legal/License/)  
 
 
