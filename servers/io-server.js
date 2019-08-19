@@ -54,7 +54,6 @@ const connectDrone = function(drone_id, socket){
     });
 
     socket.on('commonTelemetry', data => {
-        //console.log("CT", data);
         redisPub.publish(redis_ch_from_drone, JSON.stringify(['ct',data]));
     });
 
@@ -290,6 +289,8 @@ try {
                                                 Logger.info("Drones found " + list.length + " 1st id: " + list[0].id);
 
                                                 connectDrone(list[0].id, client_socket);
+                                                droneID = list[0].id;
+                                                drone_connected = true;
 
                                             }
                                             // А если нет, то ищем дрон type=dji, model=new, sn=new
@@ -313,6 +314,8 @@ try {
                                                                         Logger.info('New drone updated ' + drone.id);
 
                                                                         connectDrone(drone.id, client_socket);
+                                                                        droneID = drone.id;
+                                                                        drone_connected = true;
 
                                                                     })
                                                                     .catch( e => {
@@ -388,14 +391,10 @@ try {
                     // Пока этот статус не получит мобильное приложение, оно не будет себя считать подключенным
                     client_socket.emit('status', 'ok'); // этот статус отправляется в приложение !!! ok - строчные
 
-                    //socket.emit('getDroneData');
-
-                    // Drone data [ 1, 'Phantom 4', '07JDD3S001023G' ]
-
-
-                    client_socket.emit("commandWithAck", "getDroneData", {}, response => {
-                        console.log("Drone data from command", response);
-                    });
+                    // Пример отправки команды с подтверждением
+                    //client_socket.emit("commandWithAck", "getDroneData", {}, response => {
+                    //    console.log("Drone data from command", response);
+                    //});
 
 
 
@@ -439,7 +438,11 @@ try {
 
         // Соединение браузерной GCS
         else if( "webapp" === client_type ){
-            Logger.info('GCS connected ' + client_socket.handshake.address);
+
+
+
+
+            Logger.info('Web GCS connected ' + client_socket.handshake.address);
 
             //
             // в случае потери связи

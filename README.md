@@ -12,4 +12,4 @@ with MAVLink-based autopilots such as Ardupilot, PX4 and others.
 
 [GCS.uno website](https://www.gcs.uno/)  
 [Docs](https://docs.gcs.uno/)  
-[Community forum](https://www.gcs.uno/community)  
+[Support forum](http://gcs.uno/support-forum)  
